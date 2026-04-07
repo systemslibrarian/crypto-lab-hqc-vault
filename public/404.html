@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting...</title>
+    <script>
+      const path = window.location.pathname.replace(/^\/crypto-lab-hqc-vault/, "");
+      const query = window.location.search || "";
+      const hash = window.location.hash || "";
+      window.location.replace("/crypto-lab-hqc-vault/" + "#" + path + query + hash);
+    </script>
+  </head>
+  <body>
+    Redirecting to app...
+  </body>
+</html>
