@@ -7,6 +7,12 @@
       name="description"
       content="Interactive HQC post-quantum KEM demo with quasi-cyclic arithmetic and KEM+DEM flow."
     />
+    <script>
+      (function () {
+        const saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+      })();
+    </script>
     <title>HQC Vault | Crypto Lab</title>
   </head>
   <body>

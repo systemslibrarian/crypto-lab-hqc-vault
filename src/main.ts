@@ -13,7 +13,7 @@ import {
   type HqcEncapsulation,
   type HqcKeyPair
 } from "./hqc";
-import { announce, setupLevelSelector, setupThemeToggle } from "./ui";
+import { announce, setupLevelSelector } from "./ui";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -24,10 +24,14 @@ if (!app) {
 app.innerHTML = `
 <div class="page" aria-label="HQC Vault interactive demo">
   <header class="hero" aria-label="Demo header">
-    <div class="header-row">
-      <span class="chip category" aria-label="Category chip">Post-Quantum KEM</span>
-      <button id="theme-toggle" class="btn secondary" aria-label="Toggle dark and light theme"></button>
-    </div>
+    <span class="chip category" aria-label="Category chip">Post-Quantum KEM</span>
+    <button
+      id="theme-toggle"
+      class="theme-toggle"
+      type="button"
+      style="position: absolute; top: 0; right: 0"
+      aria-label="Switch to light mode"
+    ></button>
     <h1>HQC Vault</h1>
     <p class="subtitle">Code-based post-quantum KEM demo focused on Hamming Quasi-Cyclic construction, perfect correctness, and algorithmic diversity.</p>
     <div class="chip-row" aria-label="Primitive chips">
@@ -185,6 +189,27 @@ decode via RM then RS layers</pre>
   <div id="live-region" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 </div>
 `;
+
+function setupThemeToggle(): void {
+  const root = document.documentElement;
+  const button = document.querySelector<HTMLButtonElement>("#theme-toggle");
+  if (!button) return;
+
+  const applyThemeState = (theme: "dark" | "light") => {
+    root.dataset.theme = theme;
+    button.textContent = theme === "dark" ? "🌙" : "☀️";
+    button.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  };
+
+  const initialTheme = root.dataset.theme === "light" ? "light" : "dark";
+  applyThemeState(initialTheme);
+
+  button.addEventListener("click", () => {
+    const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+    applyThemeState(nextTheme);
+    localStorage.setItem("theme", nextTheme);
+  });
+}
 
 setupThemeToggle();
 

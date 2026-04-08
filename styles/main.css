@@ -77,7 +77,9 @@ body {
 }
 
 .hero {
+  position: relative;
   padding: 1rem;
+  padding-right: 4.5rem;
 }
 
 .header-row {
@@ -85,6 +87,27 @@ body {
   gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
+}
+
+.theme-toggle {
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  color: var(--accent);
 }
 
 h1,
@@ -323,6 +346,10 @@ pre {
   .panel,
   .footer {
     padding: 1.2rem;
+  }
+
+  .hero {
+    padding-right: 4.7rem;
   }
 
   .viz-grid {
