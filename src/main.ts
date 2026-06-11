@@ -1,123 +1,231 @@
 import "../styles/main.css";
 import { buildBarChartRows, buildComparisonRows, buildSourcesList } from "./compare";
-import { concatenatedCodeLayers } from "./codes";
+import { CODEWORD_BITS, SEED_BYTES, concatenatedCodeLayers } from "./codes";
+import { GLOSSARY } from "./glossary";
 import {
   HQC_PARAMS,
+  ILLUSTRATIVE_PARAMS,
+  bitsToBytes,
   decapsulateIllustrative,
   decryptWithSharedSecret,
   encapsulateIllustrative,
   encryptWithSharedSecret,
+  flipCiphertextBit,
+  flipRandomBits,
   fullHex,
   generateIllustrativeKeyPair,
   shortHex,
   type HqcEncapsulation,
-  type HqcKeyPair
+  type HqcKeyPair,
+  type HqcLevel
 } from "./hqc";
-import { announce, setupLevelSelector } from "./ui";
+import { mountQcVisualizer } from "./qcViz";
+import { renderSideChannelChart, runSideChannelDemo } from "./sideChannel";
+import {
+  announce,
+  escapeHtml,
+  setupCopyButtons,
+  setupGlossary,
+  setupLevelSelector,
+  setupToc,
+  withGlossary
+} from "./ui";
+import { renderVerifierResults, runVerifier } from "./verifier";
 
 const app = document.querySelector<HTMLDivElement>("#app");
-
-if (!app) {
-  throw new Error("Missing app root");
-}
+if (!app) throw new Error("Missing app root");
 
 app.innerHTML = `
 <div class="page" aria-label="HQC Vault interactive demo">
-  <header class="hero" aria-label="Demo header">
+  <header class="hero" aria-label="Demo header" id="top">
     <span class="chip category" aria-label="Category chip">Post-Quantum KEM</span>
-    <button
-      id="theme-toggle"
-      class="theme-toggle"
-      type="button"
-      style="position: absolute; top: 0; right: 0"
-      aria-label="Switch to light mode"
-    ></button>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode"></button>
     <h1>HQC Vault</h1>
     <p class="subtitle">Code-based post-quantum KEM demo focused on Hamming Quasi-Cyclic construction, perfect correctness, and algorithmic diversity.</p>
     <div class="chip-row" aria-label="Primitive chips">
       <span class="chip">HQC</span>
       <span class="chip">Quasi-Cyclic</span>
       <span class="chip">Reed-Muller</span>
+      <span class="chip">Reed-Solomon</span>
       <span class="chip">AES-256-GCM</span>
-      <span class="chip">Code-Based</span>
     </div>
-    <p class="warning" role="note" aria-label="Simulation disclosure">
-      Illustrative - not production HQC. This demo uses real quasi-cyclic binary arithmetic and an educational decoder helper path, not the full constant-time standardized implementation.
+    <p class="warning" role="note">
+      Illustrative — not production HQC. This demo uses real quasi-cyclic binary arithmetic,
+      a real Berlekamp-Massey + Reed-Muller concatenated decoder, and a real Fujisaki-Okamoto
+      verification step — but with toy parameter sizes so it runs in the browser.
     </p>
   </header>
 
-  <main id="main-content" class="panels" aria-label="Interactive HQC panels">
-    <section class="panel" aria-labelledby="panel1-title">
-      <h2 id="panel1-title">Panel 1 - HQC Construction Primer</h2>
+  <nav id="toc" class="toc" aria-label="Section navigation"></nav>
+
+  <main class="panels" id="main-content" aria-label="Interactive HQC panels">
+
+    <section class="panel" id="panel-threat" aria-labelledby="panel-threat-title">
+      <h2 id="panel-threat-title">1. Why post-quantum, why now</h2>
       <p>
-        HQC uses quasi-cyclic binary codes, while BIKE uses QC-MDPC decoding. HQC security is based on the Decisional Syndrome Decoding problem (DSD/QCSD setting).
+        ${withGlossary("A working cryptographically-relevant quantum computer would break the RSA and elliptic-curve key exchanges that protect today's TLS, SSH, and VPN traffic. The pragmatic threat is [[harvest-now-decrypt-later]]: every encrypted session captured today can be decrypted later, the moment that computer arrives.")}
       </p>
       <p>
-        HQC concatenates an inner Reed-Muller code with an outer Reed-Solomon code, enabling perfect correctness in the scheme design, unlike BIKE where non-zero DFR is a core design concern.
+        ${withGlossary("NIST's response is a portfolio. [[ML-KEM]] (the lattice-based standard) is the default, but a second standard — HQC — is being added for algorithmic diversity. If a single hardness family fell to a future attack, the world should still have a fallback that does not share the same assumption.")}
+      </p>
+      <ul class="threat-list">
+        <li>
+          <strong>HTTPS for long-lived secrets</strong> — bank records, medical data, contracts —
+          should already migrate to PQ-hybrid TLS.
+        </li>
+        <li>
+          <strong>Software signing roots and CA hierarchies</strong> change every decade or longer;
+          waiting for the breach is too late.
+        </li>
+        <li>
+          <strong>Diversity is insurance</strong>. Lattice and code-based hardness assumptions are
+          independent. A break in one does not implicate the other.
+        </li>
+      </ul>
+    </section>
+
+    <section class="panel" id="panel-construction" aria-labelledby="panel-construction-title">
+      <h2 id="panel-construction-title">2. How HQC is built</h2>
+      <p>
+        ${withGlossary("HQC ('Hamming Quasi-Cyclic') derives its security from the [[DSD]] problem in the [[quasi-cyclic]] setting: given s = x + h·y where x, y are sparse, recovering them is conjectured to be hard. The same syndrome decoding problem has resisted 45 years of attack since [[McEliece]].")}
+      </p>
+      <p>
+        ${withGlossary("To turn that into a [[KEM]], HQC needs an error-correcting code that can clean up the noise terms introduced during encapsulation. It uses a concatenation of two layers — an inner [[Reed-Muller]] code that cleans bit-level noise, and an outer [[Reed-Solomon]] code that cleans whatever symbol-level errors slip past.")}
       </p>
       <div class="viz-grid" role="list" aria-label="Code construction layers">
         ${concatenatedCodeLayers
           .map(
             (layer) => `
-          <article class="mini-card" role="listitem" aria-label="${layer.title}">
-            <h3>${layer.title}</h3>
-            <p>${layer.detail}</p>
-          </article>
-        `
+          <article class="mini-card" role="listitem">
+            <h3>${escapeHtml(layer.title)}</h3>
+            <p>${escapeHtml(layer.detail)}</p>
+          </article>`
           )
           .join("")}
       </div>
-      <p class="bridge">HQC uses this structure to build a KEM with perfect correctness - unlike BIKE.</p>
-      <div class="qc-schematic" aria-label="Quasi-cyclic vector and noise schematic">
-        <pre>[x0 x1 ... x(n-1)]
-rotate -> circulant product h * y
-add sparse noise e
-decode via RM then RS layers</pre>
-      </div>
+
+      <h3>Quasi-cyclic arithmetic — click to play</h3>
+      <p class="small">
+        ${withGlossary("A [[circulant]] is fully described by its first row; multiplying it against a sparse vector reduces to XOR-ing a few rotations. That is the whole reason HQC keys fit in kilobytes instead of megabytes.")}
+      </p>
+      <div id="qc-viz"></div>
     </section>
 
-    <section class="panel" aria-labelledby="panel2-title">
-      <h2 id="panel2-title">Panel 2 - HQC Key Generation</h2>
+    <section class="panel" id="panel-keygen" aria-labelledby="panel-keygen-title">
+      <h2 id="panel-keygen-title">3. Key generation</h2>
       <div class="controls-row">
-        <label for="hqc-level">Choose HQC parameter set</label>
+        <label for="hqc-level">HQC parameter set</label>
         <select id="hqc-level" aria-label="HQC parameter set selector">
           <option value="hqc-128">HQC-128 (Level 1)</option>
           <option value="hqc-192">HQC-192 (Level 3)</option>
           <option value="hqc-256">HQC-256 (Level 5)</option>
         </select>
-        <button id="keygen-btn" class="btn" aria-label="Generate illustrative HQC key pair">Generate keypair</button>
-        <span class="chip status" aria-label="NIST status">NIST Round 4 Selection (2025) / Diversity Track</span>
-      </div>
-      <p class="small">Private key: sparse vectors (x, y). Public key: (h, s) with s = x + h*y + noise over GF(2) using quasi-cyclic arithmetic.</p>
-      <div id="keygen-output" class="output" aria-live="polite" aria-label="Key generation output"></div>
-    </section>
-
-    <section class="panel" aria-labelledby="panel3-title">
-      <h2 id="panel3-title">Panel 3 - Encapsulation and Decapsulation</h2>
-      <div class="controls-row">
-        <button id="encap-btn" class="btn" aria-label="Run encapsulation and decapsulation">Run encap and decap</button>
+        <button id="keygen-btn" class="btn">Generate keypair</button>
+        <span class="chip status">NIST Round 4 selection (2025) — diversity track</span>
       </div>
       <p>
-        Encapsulation view: u = r1 + h*r2 + e and v = m*G + s*r2 + epsilon. Decapsulation applies decoder layers and helper check data d. This demo keeps perfect correctness in its illustrative flow.
+        ${withGlossary("Private key: two sparse vectors (x, y) of low Hamming weight. Public key: (h, s) with h uniformly random and s = x + h·y over [[GF(2)]] using quasi-cyclic arithmetic. The hard part — recovering (x, y) from s — is the [[QCSD]] assumption.")}
       </p>
-      <div id="kem-output" class="output" aria-live="polite" aria-label="KEM output values"></div>
-
-      <form id="aes-form" class="aes-form" aria-label="AES message form">
-        <label for="message-input">Message to encrypt with AES-256-GCM</label>
-        <textarea
-          id="message-input"
-          rows="3"
-          aria-label="Plaintext message"
-          placeholder="Type a message to wrap with the shared secret"
-        >Harvest-now decrypt-later risk is why PQ migration is urgent.</textarea>
-        <button type="submit" class="btn" aria-label="Encrypt and decrypt message with shared secret">Encrypt and decrypt</button>
-      </form>
-      <div id="aes-output" class="output" aria-live="polite" aria-label="AES encryption output"></div>
-      <p class="small strong">Perfect correctness demo outcome: K_Alice equals K_Bob on every run in this illustrative educational model.</p>
+      <div id="sizing-table" class="sizing-table" aria-live="polite"></div>
+      <div id="keygen-output" class="output" aria-live="polite"></div>
     </section>
 
-    <section class="panel" aria-labelledby="panel4-title">
-      <h2 id="panel4-title">Panel 4 - HQC vs BIKE vs ML-KEM</h2>
+    <section class="panel" id="panel-encap" aria-labelledby="panel-encap-title">
+      <h2 id="panel-encap-title">4. Encapsulation and decapsulation</h2>
+      <div class="controls-row">
+        <button id="encap-btn" class="btn">Run encap and decap</button>
+        <button id="step-toggle" class="btn secondary" aria-pressed="false">Show step-by-step</button>
+      </div>
+      <p class="small">
+        ${withGlossary("Encap chooses a random message seed, encodes it via the concatenated code, and ships u = r1 + h·r2 + e and v = codeword + s·r2 + ε. Decap computes v − y·u — which equals codeword plus a small noise term — and runs the decoder. The helper value d is the [[FO]] verification tag that lifts the scheme from CPA to [[CCA]].")}
+      </p>
+      <div id="kem-output" class="output" aria-live="polite"></div>
+      <div id="kem-steps" class="kem-steps" hidden></div>
+    </section>
+
+    <section class="panel" id="panel-aes" aria-labelledby="panel-aes-title">
+      <h2 id="panel-aes-title">5. KEM + DEM: encrypt a message</h2>
+      <p>
+        ${withGlossary("A [[KEM]] only derives a shared secret. To encrypt a payload you pair it with a symmetric [[DEM]] — here AES-256-GCM, using the first 32 bytes of HQC's 64-byte shared secret as the key.")}
+      </p>
+      <form id="aes-form" class="aes-form">
+        <label for="message-input">Message to encrypt with AES-256-GCM</label>
+        <textarea id="message-input" rows="3" placeholder="Type a message">Harvest-now decrypt-later risk is why PQ migration is urgent.</textarea>
+        <button type="submit" class="btn">Encrypt and decrypt</button>
+      </form>
+      <div id="aes-output" class="output" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="panel-bitflip" aria-labelledby="panel-bitflip-title">
+      <h2 id="panel-bitflip-title">6. Bit-flip lab — watch the error budget at work</h2>
+      <p>
+        Inject random bit flips into the ciphertext component <code>v</code> and watch how the
+        concatenated decoder copes. Below the code's error budget, the message seed is
+        recovered exactly. Above it, the seed flips into nonsense — and any change at all
+        also makes the FO check reject. This is the difference between the code's correctness
+        property and the KEM's CCA security.
+      </p>
+      <div class="controls-row">
+        <label for="flip-slider">Bits to flip in v: <strong id="flip-count">0</strong></label>
+        <input id="flip-slider" type="range" min="0" max="40" value="0" aria-label="Bits to flip in ciphertext v" />
+        <button id="flip-run" class="btn">Run with these flips</button>
+      </div>
+      <div id="flip-output" class="output" aria-live="polite">Generate a keypair and run encap first.</div>
+    </section>
+
+    <section class="panel" id="panel-tamper" aria-labelledby="panel-tamper-title">
+      <h2 id="panel-tamper-title">7. Tamper lab — IND-CCA in one click</h2>
+      <p>
+        ${withGlossary("Flip a single bit in u, v, or d. The decoder may still recover the seed (because the inner+outer code absorbs noise), but [[FO]] verification re-derives d from the recovered seed and compares it byte-for-byte against the ciphertext's d. Any mismatch — even one bit — triggers implicit rejection and the shared secret diverges.")}
+      </p>
+      <div class="controls-row">
+        <label for="tamper-field">Tamper field:</label>
+        <select id="tamper-field">
+          <option value="u">u (ciphertext)</option>
+          <option value="v">v (codeword carrier)</option>
+          <option value="d">d (FO verification tag)</option>
+        </select>
+        <label for="tamper-bit">Bit index:</label>
+        <input id="tamper-bit" type="number" min="0" value="0" aria-label="Bit index to flip" />
+        <button id="tamper-run" class="btn">Flip one bit and decap</button>
+      </div>
+      <div id="tamper-output" class="output" aria-live="polite">Generate a keypair and run encap first.</div>
+    </section>
+
+    <section class="panel" id="panel-sidechannel" aria-labelledby="panel-sidechannel-title">
+      <h2 id="panel-sidechannel-title">8. Side-channel timing toy</h2>
+      <p>
+        ${withGlossary("Production HQC implementations care obsessively about constant-time code. The reason is that any variable-time access pattern over a secret leaks information through a [[side-channel]] — timing, cache state, branch prediction. Here is the toy version of that leak.")}
+      </p>
+      <div class="controls-row">
+        <button id="sc-run" class="btn">Measure timings</button>
+      </div>
+      <div id="sc-output" class="output" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="panel-verify" aria-labelledby="panel-verify-title">
+      <h2 id="panel-verify-title">9. Empirical correctness verifier</h2>
+      <p>
+        Run many independent keypairs and ciphertexts through the full encap/decap loop.
+        The clean rate measures whether perfect correctness actually holds on the chosen
+        illustrative parameters; the flip table measures the code's error budget without
+        the FO check rejecting first.
+      </p>
+      <div class="controls-row">
+        <label for="verify-trials">Trials per condition:</label>
+        <select id="verify-trials">
+          <option value="20">20 (fast)</option>
+          <option value="50" selected>50</option>
+          <option value="100">100 (slow)</option>
+        </select>
+        <button id="verify-run" class="btn">Run verifier</button>
+        <span id="verify-progress" class="small"></span>
+      </div>
+      <div id="verify-output" class="output" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="panel-compare" aria-labelledby="panel-compare-title">
+      <h2 id="panel-compare-title">10. HQC vs BIKE vs ML-KEM</h2>
       <div class="controls-row">
         <label for="compare-level">Comparison level</label>
         <select id="compare-level" aria-label="Select security level for bar chart">
@@ -131,107 +239,170 @@ decode via RM then RS layers</pre>
           <caption>Published values from HQC and BIKE Round-4 submissions plus Kyber/ML-KEM reference tables</caption>
           <thead>
             <tr>
-              <th>Variant</th>
-              <th>PK (B)</th>
-              <th>CT (B)</th>
-              <th>SS (B)</th>
-              <th>Keygen</th>
-              <th>Encap</th>
-              <th>Decap</th>
-              <th>Assumption</th>
-              <th>Correctness / DFR</th>
+              <th>Variant</th><th>PK (B)</th><th>CT (B)</th><th>SS (B)</th>
+              <th>Keygen</th><th>Encap</th><th>Decap</th>
+              <th>Assumption</th><th>Correctness / DFR</th>
             </tr>
           </thead>
           <tbody id="compare-rows">${buildComparisonRows()}</tbody>
         </table>
       </div>
-
       <div id="size-bars" class="bars" role="list" aria-label="Key plus ciphertext size bars"></div>
-      <div class="callouts" aria-label="Status callouts">
-        <span class="chip status">ML-KEM: Recommended Default</span>
-        <span class="chip status">HQC: Acceptable for diversity</span>
-        <span class="chip status">BIKE: Acceptable for diversity, non-zero DFR design</span>
+      <div class="callouts">
+        <span class="chip status">ML-KEM: recommended default</span>
+        <span class="chip status">HQC: acceptable for diversity</span>
+        <span class="chip status">BIKE: acceptable for diversity, non-zero DFR design</span>
       </div>
-      <ul class="sources" aria-label="Benchmark and table sources">
-        ${buildSourcesList()}
-      </ul>
+      <ul class="sources" aria-label="Benchmark and table sources">${buildSourcesList()}</ul>
     </section>
 
-    <section class="panel" aria-labelledby="panel5-title">
-      <h2 id="panel5-title">Panel 5 - Algorithmic Diversity and PQ Landscape</h2>
+    <section class="panel" id="panel-diversity" aria-labelledby="panel-diversity-title">
+      <h2 id="panel-diversity-title">11. Algorithmic diversity and the PQ landscape</h2>
       <p>
-        Relying on only one hardness family is strategically risky. Code-based cryptography provides diversity beyond lattice assumptions.
+        Relying on a single hardness family is strategically risky. Code-based cryptography
+        provides diversity beyond lattice assumptions: McEliece (1978) → BIKE → HQC. That
+        family line has accumulated over four decades of cryptanalytic scrutiny.
       </p>
       <p>
-        Family line: McEliece (1978) -> BIKE -> HQC. This gives over four decades of cryptanalytic scrutiny in the code-based world.
-      </p>
-      <p>
-        NIST status: ML-KEM is deployed now; HQC was selected in 2025 for ongoing standardization work (NIST IR 8545 context), reinforcing code-based diversity.
-      </p>
-      <p class="why">
-        Why this matters: HQC offers perfect correctness and code-based security, making it a compelling alternative when high-assurance environments require algorithmic diversity beside ML-KEM.
+        NIST status: ML-KEM is the deployed default; HQC was selected in 2025 for ongoing
+        standardization work (NIST IR 8545 context), reinforcing the code-based diversity track.
       </p>
       <div class="links" aria-label="Related demos">
-        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-kyber-vault/" target="_blank" rel="noreferrer" aria-label="Open crypto-lab-kyber-vault">crypto-lab-kyber-vault</a>
-        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-bike-vault/" target="_blank" rel="noreferrer" aria-label="Open crypto-lab-bike-vault">crypto-lab-bike-vault</a>
-        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-mceliece-gate/" target="_blank" rel="noreferrer" aria-label="Open crypto-lab-mceliece-gate">crypto-lab-mceliece-gate</a>
-        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-dilithium-seal/" target="_blank" rel="noreferrer" aria-label="Open crypto-lab-dilithium-seal">crypto-lab-dilithium-seal</a>
-        <a class="badge" href="https://systemslibrarian.github.io/crypto-compare/?category=kem" target="_blank" rel="noreferrer" aria-label="Open crypto-compare KEM category">crypto-compare kem</a>
+        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-kyber-vault/" target="_blank" rel="noreferrer">crypto-lab-kyber-vault</a>
+        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-bike-vault/" target="_blank" rel="noreferrer">crypto-lab-bike-vault</a>
+        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-mceliece-gate/" target="_blank" rel="noreferrer">crypto-lab-mceliece-gate</a>
+        <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-dilithium-seal/" target="_blank" rel="noreferrer">crypto-lab-dilithium-seal</a>
+        <a class="badge" href="https://systemslibrarian.github.io/crypto-compare/?category=kem" target="_blank" rel="noreferrer">crypto-compare kem</a>
       </div>
     </section>
+
+    <section class="panel" id="panel-glossary" aria-labelledby="panel-glossary-title">
+      <h2 id="panel-glossary-title">12. Glossary</h2>
+      <p class="small">Every term in green is also clickable inline throughout the demo.</p>
+      <dl class="glossary-list">
+        ${Object.entries(GLOSSARY)
+          .map(
+            ([key, term]) => `
+            <dt><button type="button" class="gloss" data-term="${escapeHtml(key)}">${escapeHtml(term.short)}</button></dt>
+            <dd>${escapeHtml(term.long)}</dd>`
+          )
+          .join("")}
+      </dl>
+    </section>
+
+    <section class="panel" id="panel-export" aria-labelledby="panel-export-title">
+      <h2 id="panel-export-title">13. Export this session</h2>
+      <p class="small">Downloads the current keypair, ciphertext, shared secrets, and AES envelope as a JSON file so you can take the transcript away or paste it into a notebook.</p>
+      <div class="controls-row">
+        <button id="export-btn" class="btn">Download run as JSON</button>
+      </div>
+    </section>
+
   </main>
 
   <footer class="footer" aria-label="Footer">
-    <a class="badge" href="https://github.com/systemslibrarian/crypto-lab-hqc-vault" target="_blank" rel="noreferrer" aria-label="Open GitHub repository">github.com/systemslibrarian/crypto-lab-hqc-vault</a>
-    <p>So whether you eat or drink or whatever you do, do it all for the glory of God. - 1 Corinthians 10:31</p>
+    <a class="badge" href="https://github.com/systemslibrarian/crypto-lab-hqc-vault" target="_blank" rel="noreferrer">github.com/systemslibrarian/crypto-lab-hqc-vault</a>
+    <p>So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31</p>
   </footer>
 
   <div id="live-region" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 </div>
 `;
 
-function setupThemeToggle(): void {
-  const root = document.documentElement;
-  const button = document.querySelector<HTMLButtonElement>("#theme-toggle");
-  if (!button) return;
-
-  const applyThemeState = (theme: "dark" | "light") => {
-    root.dataset.theme = theme;
-    button.textContent = theme === "dark" ? "🌙" : "☀️";
-    button.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
-  };
-
-  const initialTheme = root.dataset.theme === "light" ? "light" : "dark";
-  applyThemeState(initialTheme);
-
-  button.addEventListener("click", () => {
-    const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
-    applyThemeState(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-  });
-}
-
-setupThemeToggle();
-
-const bars = document.querySelector<HTMLDivElement>("#size-bars");
-const keygenOutput = document.querySelector<HTMLDivElement>("#keygen-output");
-const kemOutput = document.querySelector<HTMLDivElement>("#kem-output");
-const aesOutput = document.querySelector<HTMLDivElement>("#aes-output");
-const keygenBtn = document.querySelector<HTMLButtonElement>("#keygen-btn");
-const encapBtn = document.querySelector<HTMLButtonElement>("#encap-btn");
-const levelSelector = document.querySelector<HTMLSelectElement>("#hqc-level");
-const aesForm = document.querySelector<HTMLFormElement>("#aes-form");
-const messageInput = document.querySelector<HTMLTextAreaElement>("#message-input");
+// ---------- shared state ----------
 
 let currentKeyPair: HqcKeyPair | null = null;
-let currentEncapsulation: HqcEncapsulation | null = null;
+let currentEncap: HqcEncapsulation | null = null;
+let stepMode = false;
 
-function renderBars(level: "L1" | "L3" | "L5"): void {
-  if (!bars) return;
-  bars.innerHTML = buildBarChartRows(level);
+// ---------- theme ----------
+
+(function setupThemeToggle() {
+  const root = document.documentElement;
+  const btn = document.querySelector<HTMLButtonElement>("#theme-toggle");
+  if (!btn) return;
+  const apply = (t: "dark" | "light") => {
+    root.dataset.theme = t;
+    btn.textContent = t === "dark" ? "🌙" : "☀️";
+    btn.setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  };
+  apply(root.dataset.theme === "light" ? "light" : "dark");
+  btn.addEventListener("click", () => {
+    const next = root.dataset.theme === "dark" ? "light" : "dark";
+    apply(next);
+    localStorage.setItem("theme", next);
+  });
+})();
+
+// ---------- TOC, glossary, copy ----------
+
+setupToc([
+  { id: "panel-threat", label: "1. Why PQ" },
+  { id: "panel-construction", label: "2. How HQC is built" },
+  { id: "panel-keygen", label: "3. Keygen" },
+  { id: "panel-encap", label: "4. Encap / decap" },
+  { id: "panel-aes", label: "5. AES" },
+  { id: "panel-bitflip", label: "6. Bit-flip lab" },
+  { id: "panel-tamper", label: "7. Tamper lab" },
+  { id: "panel-sidechannel", label: "8. Side-channel" },
+  { id: "panel-verify", label: "9. Verifier" },
+  { id: "panel-compare", label: "10. Compare" },
+  { id: "panel-diversity", label: "11. Diversity" },
+  { id: "panel-glossary", label: "12. Glossary" }
+]);
+setupGlossary(GLOSSARY);
+setupCopyButtons();
+mountQcVisualizer();
+
+// ---------- comparison bars ----------
+
+const bars = document.querySelector<HTMLDivElement>("#size-bars");
+function renderBars(level: "L1" | "L3" | "L5") {
+  if (bars) bars.innerHTML = buildBarChartRows(level);
+}
+setupLevelSelector(renderBars);
+
+// ---------- sizing table ----------
+
+function renderSizingTable(level: HqcLevel) {
+  const target = document.querySelector<HTMLDivElement>("#sizing-table");
+  if (!target) return;
+  const spec = HQC_PARAMS[level];
+  const ill = ILLUSTRATIVE_PARAMS[level];
+  target.innerHTML = `
+    <table>
+      <caption>Spec sizes vs the toy sizes used in this browser</caption>
+      <thead>
+        <tr><th></th><th>Real HQC spec</th><th>Illustrative (this demo)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Quasi-cyclic dimension n</td><td>${spec.n.toLocaleString()}</td><td>${ill.n}</td></tr>
+        <tr><td>Sparse weight w (private key)</td><td>${spec.w}</td><td>${ill.w}</td></tr>
+        <tr><td>Encap noise weight w_e</td><td>${spec.w_e}</td><td>${ill.w_e}</td></tr>
+        <tr><td>Encap noise weight w_r</td><td>${spec.w_r}</td><td>${ill.w_r}</td></tr>
+        <tr><td>Public key size</td><td>${spec.pkBytes.toLocaleString()} B</td><td>≈ ${ill.pkBytes} B</td></tr>
+        <tr><td>Ciphertext size</td><td>${spec.ctBytes.toLocaleString()} B</td><td>≈ ${ill.ctBytes} B</td></tr>
+        <tr><td>Shared secret size</td><td>${spec.ssBytes} B</td><td>32 B (post-SHA-256)</td></tr>
+      </tbody>
+    </table>
+    <p class="small">
+      The illustrative dimension is roughly <strong>${(ill.n / spec.n * 100).toFixed(2)}%</strong> of the spec.
+      Weights are kept tiny so the noise term inside v − y·u always lands inside the concatenated
+      code's error budget, letting decap succeed reliably enough to teach with.
+    </p>
+  `;
 }
 
-setupLevelSelector(renderBars);
+// ---------- keygen ----------
+
+const keygenOutput = document.querySelector<HTMLDivElement>("#keygen-output");
+const keygenBtn = document.querySelector<HTMLButtonElement>("#keygen-btn");
+const levelSelector = document.querySelector<HTMLSelectElement>("#hqc-level");
+
+if (levelSelector) {
+  renderSizingTable(levelSelector.value as HqcLevel);
+  levelSelector.addEventListener("change", () => renderSizingTable(levelSelector.value as HqcLevel));
+}
 
 if (keygenBtn && keygenOutput && levelSelector) {
   keygenBtn.addEventListener("click", async () => {
@@ -240,20 +411,24 @@ if (keygenBtn && keygenOutput && levelSelector) {
       keygenOutput.textContent = "Generating keypair...";
       announce("Generating illustrative HQC key pair.");
 
-      const level = levelSelector.value as "hqc-128" | "hqc-192" | "hqc-256";
+      const level = levelSelector.value as HqcLevel;
       const kp = await generateIllustrativeKeyPair(level);
       currentKeyPair = kp;
-      currentEncapsulation = null;
+      currentEncap = null;
 
+      const hPacked = bitsToBytes(kp.publicKey.h);
+      const sPacked = bitsToBytes(kp.publicKey.s);
       keygenOutput.innerHTML = `
-        <p><strong>${kp.params.label}</strong></p>
-        <p>Exact round-4 parameters: n=${HQC_PARAMS[level].n}, w=${HQC_PARAMS[level].w}, w_e=${HQC_PARAMS[level].w_e}, w_r=${HQC_PARAMS[level].w_r}</p>
-        <p>Illustrative simulation dimension used in-browser: n=${kp.publicKey.h.length}</p>
-        <p>private x (weight ${kp.privateKey.x.length}) = <code>${Array.from(kp.privateKey.x).slice(0, 24).join(", ")}${kp.privateKey.x.length > 24 ? ", ..." : ""}</code></p>
-        <p>private y (weight ${kp.privateKey.y.length}) = <code>${Array.from(kp.privateKey.y).slice(0, 24).join(", ")}${kp.privateKey.y.length > 24 ? ", ..." : ""}</code></p>
-        <p>public h (hex preview) = <code class="hex">${shortHex(kp.publicKey.h)}</code></p>
-        <p>public s (hex preview) = <code class="hex">${shortHex(kp.publicKey.s)}</code></p>
-        <p>Security basis: Decisional Syndrome Decoding over quasi-cyclic binary codes.</p>
+        <p><strong>${escapeHtml(kp.params.label)}</strong></p>
+        <p>Illustrative n = ${kp.illustrative.n} (vs spec ${kp.params.n.toLocaleString()})</p>
+        <p>private x supports (weight ${kp.privateKey.x.length}) = <code>${Array.from(kp.privateKey.x).join(", ")}</code></p>
+        <p>private y supports (weight ${kp.privateKey.y.length}) = <code>${Array.from(kp.privateKey.y).join(", ")}</code></p>
+        <p>public h (packed hex, ${hPacked.length} B)
+          <button class="copy-btn" type="button" data-copy-target="#kp-h">copy</button>
+          = <code id="kp-h" class="hex">${fullHex(hPacked)}</code></p>
+        <p>public s (packed hex, ${sPacked.length} B)
+          <button class="copy-btn" type="button" data-copy-target="#kp-s">copy</button>
+          = <code id="kp-s" class="hex">${fullHex(sPacked)}</code></p>
       `;
       announce("Key generation complete.");
     } catch {
@@ -265,83 +440,303 @@ if (keygenBtn && keygenOutput && levelSelector) {
   });
 }
 
+// ---------- step-through toggle ----------
+
+const stepToggle = document.querySelector<HTMLButtonElement>("#step-toggle");
+const stepContainer = document.querySelector<HTMLDivElement>("#kem-steps");
+stepToggle?.addEventListener("click", () => {
+  stepMode = !stepMode;
+  stepToggle.setAttribute("aria-pressed", stepMode ? "true" : "false");
+  stepToggle.textContent = stepMode ? "Hide step-by-step" : "Show step-by-step";
+  if (stepContainer) stepContainer.hidden = !stepMode;
+});
+
+function renderSteps(enc: HqcEncapsulation, dec: { rmBitErrors: number; rsSymbolErrors: number; decoded: boolean; verified: boolean }) {
+  if (!stepContainer) return;
+  const steps = [
+    {
+      title: "1. Pick a random message seed (16 bits)",
+      detail: `messageSeed = <code class="hex">${fullHex(enc.trace.messageSeed)}</code> &nbsp;(${SEED_BYTES} bytes, ${SEED_BYTES * 8} bits)`
+    },
+    {
+      title: "2. Encode it with RS(15,4) + RM(1,3)",
+      detail: `codeword bits (${CODEWORD_BITS} total): <code class="hex">${Array.from(enc.trace.codewordBits).join("")}</code>`
+    },
+    {
+      title: "3. Sample sparse randomness (r1, r2, e, ε)",
+      detail: `r1 supports = [${Array.from(enc.trace.r1).slice(0, 12).join(", ")}${enc.trace.r1.length > 12 ? ", …" : ""}]<br>r2 supports = [${Array.from(enc.trace.r2).slice(0, 12).join(", ")}${enc.trace.r2.length > 12 ? ", …" : ""}]`
+    },
+    {
+      title: "4. Compute u = r1 + h·r2 + e",
+      detail: `u (hex) = <code class="hex">${shortHex(enc.ciphertext.u)}</code>`
+    },
+    {
+      title: "5. Compute v = codeword + s·r2 + ε",
+      detail: `v (hex) = <code class="hex">${shortHex(enc.ciphertext.v)}</code>`
+    },
+    {
+      title: "6. Compute FO verification tag d = SHA-256(m, u, v, s)",
+      detail: `d = <code class="hex">${shortHex(enc.ciphertext.d)}</code>`
+    },
+    {
+      title: "7. Derive shared secret K = SHA-256(m, u, v, d)",
+      detail: `K = <code class="hex">${shortHex(enc.sharedSecret)}</code>`
+    },
+    {
+      title: "8. Decap: compute v − y·u → noisy codeword",
+      detail: `Reed-Muller corrected ${dec.rmBitErrors} bit errors across 15 blocks. ${dec.rsSymbolErrors >= 0 ? `Reed-Solomon then corrected ${dec.rsSymbolErrors} symbol errors.` : "Reed-Solomon could not decode."}`
+    },
+    {
+      title: "9. FO verify: recompute d′ and compare",
+      detail: dec.verified ? "<strong>d′ = d</strong> → accept, derive K from the recovered seed." : "<strong>d′ ≠ d</strong> → implicit rejection, derive a synthetic K."
+    }
+  ];
+  stepContainer.innerHTML = steps
+    .map(
+      (s, i) => `
+      <details class="step" ${i === 0 ? "open" : ""}>
+        <summary>${escapeHtml(s.title)}</summary>
+        <div>${s.detail}</div>
+      </details>`
+    )
+    .join("");
+}
+
+// ---------- encap / decap ----------
+
+const kemOutput = document.querySelector<HTMLDivElement>("#kem-output");
+const encapBtn = document.querySelector<HTMLButtonElement>("#encap-btn");
+
 if (encapBtn && kemOutput) {
   encapBtn.addEventListener("click", async () => {
     if (!currentKeyPair) {
       kemOutput.innerHTML = '<p class="error">Generate a keypair first.</p>';
-      announce("You need to generate a keypair before encapsulation.");
       return;
     }
-
     try {
       encapBtn.disabled = true;
       kemOutput.textContent = "Running encapsulation and decapsulation...";
-
-      const encapsulated = await encapsulateIllustrative(currentKeyPair);
-      currentEncapsulation = encapsulated;
-      const decapsulated = await decapsulateIllustrative(currentKeyPair, encapsulated.ciphertext);
-
-      const matches = fullHex(encapsulated.sharedSecret) === fullHex(decapsulated.sharedSecret);
-      const matchText = matches ? "MATCH" : "MISMATCH";
+      const enc = await encapsulateIllustrative(currentKeyPair);
+      currentEncap = enc;
+      const dec = await decapsulateIllustrative(currentKeyPair, enc.ciphertext);
+      const match = fullHex(enc.sharedSecret) === fullHex(dec.sharedSecret);
 
       kemOutput.innerHTML = `
-        <p>Alice shared secret = <code class="hex">${fullHex(encapsulated.sharedSecret)}</code></p>
-        <p>Bob shared secret = <code class="hex">${fullHex(decapsulated.sharedSecret)}</code></p>
-        <p>Result: <strong>${matchText}</strong> (${matches ? "perfect correctness demonstrated" : "check implementation"})</p>
-        <p>ciphertext u = <code class="hex">${shortHex(encapsulated.ciphertext.u)}</code></p>
-        <p>ciphertext v = <code class="hex">${shortHex(encapsulated.ciphertext.v)}</code></p>
-        <p>ciphertext d = <code class="hex">${shortHex(encapsulated.ciphertext.d)}</code></p>
-        <p>Recovered message seed (hex) = <code class="hex">${fullHex(decapsulated.recoveredSeed)}</code></p>
+        <p>Alice K = <code id="alice-k" class="hex">${fullHex(enc.sharedSecret)}</code>
+           <button class="copy-btn" type="button" data-copy-target="#alice-k">copy</button></p>
+        <p>Bob   K = <code id="bob-k" class="hex">${fullHex(dec.sharedSecret)}</code>
+           <button class="copy-btn" type="button" data-copy-target="#bob-k">copy</button></p>
+        <p>Result: <strong class="${match ? "ok" : "bad"}">${match ? "MATCH" : "MISMATCH"}</strong>
+           &nbsp;FO verified: <strong class="${dec.verified ? "ok" : "bad"}">${dec.verified}</strong>
+           &nbsp;RM bit errors corrected: <strong>${dec.trace.rmBitErrors}</strong>
+           &nbsp;RS symbol errors corrected: <strong>${dec.trace.rsSymbolErrors >= 0 ? dec.trace.rsSymbolErrors : "—"}</strong></p>
+        <p>u = <code class="hex">${shortHex(enc.ciphertext.u)}</code></p>
+        <p>v = <code class="hex">${shortHex(enc.ciphertext.v)}</code></p>
+        <p>d = <code class="hex">${shortHex(enc.ciphertext.d)}</code></p>
       `;
-
-      announce(matches ? "Encapsulation and decapsulation completed with matching keys." : "Key mismatch detected.");
-    } catch {
-      kemOutput.innerHTML = '<p class="error">Encapsulation/decapsulation failed.</p>';
-      announce("Error during encapsulation and decapsulation.");
+      renderSteps(enc, {
+        rmBitErrors: dec.trace.rmBitErrors,
+        rsSymbolErrors: dec.trace.rsSymbolErrors,
+        decoded: dec.trace.decoded,
+        verified: dec.verified
+      });
+      announce(match ? "Encap and decap match." : "Mismatch detected.");
+    } catch (err) {
+      kemOutput.innerHTML = `<p class="error">Encap/decap failed: ${escapeHtml(String(err))}</p>`;
     } finally {
       encapBtn.disabled = false;
     }
   });
 }
 
-if (aesForm && aesOutput && messageInput) {
-  aesForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+// ---------- AES ----------
 
-    if (!currentEncapsulation || !currentKeyPair) {
-      aesOutput.innerHTML = '<p class="error">Run encapsulation first to derive a shared secret.</p>';
-      announce("Run encapsulation first.");
+const aesForm = document.querySelector<HTMLFormElement>("#aes-form");
+const aesOutput = document.querySelector<HTMLDivElement>("#aes-output");
+const messageInput = document.querySelector<HTMLTextAreaElement>("#message-input");
+
+if (aesForm && aesOutput && messageInput) {
+  aesForm.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!currentEncap || !currentKeyPair) {
+      aesOutput.innerHTML = '<p class="error">Run encap first to derive a shared secret.</p>';
       return;
     }
-
     try {
       const message = messageInput.value.trim();
       if (!message) {
         aesOutput.innerHTML = '<p class="error">Please enter a message.</p>';
-        announce("Message is required.");
         return;
       }
-
-      const decap = await decapsulateIllustrative(currentKeyPair, currentEncapsulation.ciphertext);
-      const envelope = await encryptWithSharedSecret(decap.sharedSecret, message);
-      const plaintext = await decryptWithSharedSecret(decap.sharedSecret, envelope);
-
-      const escaped = plaintext
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#x27;");
+      const dec = await decapsulateIllustrative(currentKeyPair, currentEncap.ciphertext);
+      const envelope = await encryptWithSharedSecret(dec.sharedSecret, message);
+      const plaintext = await decryptWithSharedSecret(dec.sharedSecret, envelope);
       aesOutput.innerHTML = `
         <p>IV = <code class="hex">${fullHex(envelope.iv)}</code></p>
-        <p>AES-256-GCM ciphertext = <code class="hex">${fullHex(envelope.ciphertext)}</code></p>
-        <p>Decrypted plaintext = <strong>${escaped}</strong></p>
-        <p class="small">KEM + DEM flow complete using WebCrypto AES-256-GCM.</p>
+        <p>AES-256-GCM ciphertext = <code id="aes-ct" class="hex">${fullHex(envelope.ciphertext)}</code>
+           <button class="copy-btn" type="button" data-copy-target="#aes-ct">copy</button></p>
+        <p>Decrypted plaintext = <strong>${escapeHtml(plaintext)}</strong></p>
       `;
-      announce("AES encryption and decryption succeeded.");
     } catch {
       aesOutput.innerHTML = '<p class="error">AES operation failed.</p>';
-      announce("AES operation failed.");
     }
   });
 }
+
+// ---------- bit-flip lab ----------
+
+const flipSlider = document.querySelector<HTMLInputElement>("#flip-slider");
+const flipCount = document.querySelector<HTMLSpanElement>("#flip-count");
+const flipRun = document.querySelector<HTMLButtonElement>("#flip-run");
+const flipOutput = document.querySelector<HTMLDivElement>("#flip-output");
+
+flipSlider?.addEventListener("input", () => {
+  if (flipCount) flipCount.textContent = flipSlider.value;
+});
+
+flipRun?.addEventListener("click", async () => {
+  if (!currentKeyPair || !currentEncap || !flipSlider || !flipOutput) {
+    if (flipOutput) flipOutput.innerHTML = '<p class="error">Generate a keypair and run encap first.</p>';
+    return;
+  }
+  const flips = Number(flipSlider.value);
+  const tampered = flipRandomBits(currentEncap.ciphertext, "v", flips);
+  const dec = await decapsulateIllustrative(currentKeyPair, tampered.ciphertext);
+  const seedMatches = fullHex(dec.recoveredSeed) === fullHex(currentEncap.messageSeed);
+  flipOutput.innerHTML = `
+    <p>Flipped <strong>${flips}</strong> bits at positions [${tampered.positions.slice(0, 16).join(", ")}${tampered.positions.length > 16 ? ", …" : ""}]</p>
+    <p>RM corrected ${dec.trace.rmBitErrors} bit errors. RS ${dec.trace.rsSymbolErrors >= 0 ? `corrected ${dec.trace.rsSymbolErrors} symbol errors` : "could not decode"}.</p>
+    <p>Seed pre-FO recovered exactly? <strong class="${seedMatches ? "ok" : "bad"}">${seedMatches ? "YES" : "NO"}</strong> &nbsp; FO check accepted? <strong class="${dec.verified ? "ok" : "bad"}">${dec.verified ? "YES" : "NO"}</strong></p>
+    <p>Original seed = <code class="hex">${fullHex(currentEncap.messageSeed)}</code></p>
+    <p>Recovered seed = <code class="hex">${fullHex(dec.recoveredSeed)}</code></p>
+    <p class="small">
+      Up to roughly 15 random flips, the concatenated code recovers the seed reliably.
+      Beyond that, the seed flips into nonsense. Either way the FO check rejects, because
+      <em>any</em> change to v changes the expected d.
+    </p>
+  `;
+});
+
+// ---------- tamper lab ----------
+
+const tamperField = document.querySelector<HTMLSelectElement>("#tamper-field");
+const tamperBit = document.querySelector<HTMLInputElement>("#tamper-bit");
+const tamperRun = document.querySelector<HTMLButtonElement>("#tamper-run");
+const tamperOutput = document.querySelector<HTMLDivElement>("#tamper-output");
+
+tamperRun?.addEventListener("click", async () => {
+  if (!currentKeyPair || !currentEncap || !tamperField || !tamperBit || !tamperOutput) {
+    if (tamperOutput) tamperOutput.innerHTML = '<p class="error">Generate a keypair and run encap first.</p>';
+    return;
+  }
+  const field = tamperField.value as "u" | "v" | "d";
+  const bit = Math.max(0, Number(tamperBit.value));
+  const tampered = flipCiphertextBit(currentEncap.ciphertext, field, bit);
+  const dec = await decapsulateIllustrative(currentKeyPair, tampered);
+  const cleanShared = fullHex(currentEncap.sharedSecret);
+  const tamperedShared = fullHex(dec.sharedSecret);
+  const sameK = cleanShared === tamperedShared;
+  tamperOutput.innerHTML = `
+    <p>Flipped bit <strong>${bit}</strong> of <strong>${field}</strong>.</p>
+    <p>FO verification: <strong class="${dec.verified ? "ok" : "bad"}">${dec.verified ? "accepted" : "REJECTED — implicit rejection"}</strong></p>
+    <p>K matches clean run: <strong class="${sameK ? "ok" : "bad"}">${sameK ? "yes" : "no — divergent K"}</strong></p>
+    <p>Clean K     = <code class="hex">${cleanShared}</code></p>
+    <p>Tampered K  = <code class="hex">${tamperedShared}</code></p>
+    <p class="small">
+      The CCA story: even a one-bit change cannot produce a colliding K, so an attacker
+      using a decap oracle on tampered ciphertexts learns nothing about the original key.
+    </p>
+  `;
+});
+
+// ---------- side-channel ----------
+
+const scBtn = document.querySelector<HTMLButtonElement>("#sc-run");
+const scOutput = document.querySelector<HTMLDivElement>("#sc-output");
+
+scBtn?.addEventListener("click", () => {
+  if (!scOutput) return;
+  scOutput.textContent = "Measuring...";
+  scBtn.disabled = true;
+  setTimeout(() => {
+    try {
+      const result = runSideChannelDemo();
+      renderSideChannelChart(scOutput, result);
+    } catch (err) {
+      scOutput.innerHTML = `<p class="error">${escapeHtml(String(err))}</p>`;
+    } finally {
+      scBtn.disabled = false;
+    }
+  }, 10);
+});
+
+// ---------- verifier ----------
+
+const verifyBtn = document.querySelector<HTMLButtonElement>("#verify-run");
+const verifyTrials = document.querySelector<HTMLSelectElement>("#verify-trials");
+const verifyProgress = document.querySelector<HTMLSpanElement>("#verify-progress");
+const verifyOutput = document.querySelector<HTMLDivElement>("#verify-output");
+
+verifyBtn?.addEventListener("click", async () => {
+  if (!verifyTrials || !verifyProgress || !verifyOutput || !levelSelector) return;
+  const level = levelSelector.value as HqcLevel;
+  const trials = Number(verifyTrials.value);
+  verifyBtn.disabled = true;
+  verifyOutput.textContent = "Running...";
+  try {
+    const final = await runVerifier(level, trials, (p) => {
+      verifyProgress.textContent = `${p.done}/${p.total} trials, clean ${p.cleanOk} ok / ${p.cleanFail} fail`;
+    });
+    renderVerifierResults(verifyOutput, final);
+    verifyProgress.textContent = "Done.";
+  } catch (err) {
+    verifyOutput.innerHTML = `<p class="error">${escapeHtml(String(err))}</p>`;
+  } finally {
+    verifyBtn.disabled = false;
+  }
+});
+
+// ---------- export ----------
+
+const exportBtn = document.querySelector<HTMLButtonElement>("#export-btn");
+exportBtn?.addEventListener("click", () => {
+  if (!currentKeyPair) {
+    alert("Generate a keypair first.");
+    return;
+  }
+  const payload = {
+    level: currentKeyPair.params.id,
+    spec: currentKeyPair.params,
+    illustrative: currentKeyPair.illustrative,
+    publicKey: {
+      h: fullHex(currentKeyPair.publicKey.h),
+      s: fullHex(currentKeyPair.publicKey.s)
+    },
+    privateKey: {
+      x: Array.from(currentKeyPair.privateKey.x),
+      y: Array.from(currentKeyPair.privateKey.y)
+    },
+    encap: currentEncap
+      ? {
+          messageSeed: fullHex(currentEncap.messageSeed),
+          sharedSecret: fullHex(currentEncap.sharedSecret),
+          ciphertext: {
+            u: fullHex(currentEncap.ciphertext.u),
+            v: fullHex(currentEncap.ciphertext.v),
+            d: fullHex(currentEncap.ciphertext.d)
+          }
+        }
+      : null,
+    note: "Illustrative HQC demo output — NOT a production keypair."
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `hqc-vault-${currentKeyPair.params.id}-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  announce("Exported run as JSON.");
+});

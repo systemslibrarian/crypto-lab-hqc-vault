@@ -1,4 +1,9 @@
-import { decodeIllustrativeCodeword, encodeIllustrativeCodeword } from "./codes";
+import {
+  CODEWORD_BITS,
+  SEED_BYTES,
+  decodeConcatenated,
+  encodeConcatenated
+} from "./codes";
 
 export type HqcLevel = "hqc-128" | "hqc-192" | "hqc-256";
 
@@ -14,8 +19,18 @@ export interface HqcParams {
   ssBytes: number;
 }
 
+export interface IllustrativeParams {
+  n: number;
+  w: number;
+  w_e: number;
+  w_r: number;
+  pkBytes: number;
+  ctBytes: number;
+}
+
 export interface HqcKeyPair {
   params: HqcParams;
+  illustrative: IllustrativeParams;
   publicKey: {
     h: Uint8Array;
     s: Uint8Array;
@@ -32,10 +47,39 @@ export interface HqcCiphertext {
   d: Uint8Array;
 }
 
+export interface EncapTrace {
+  messageSeed: Uint8Array;
+  codewordBits: Uint8Array; // first CODEWORD_BITS bits actually used
+  r1: Uint32Array;
+  r2: Uint32Array;
+  e: Uint32Array;
+  epsilon: Uint32Array;
+  hr2: Uint8Array;
+  sr2: Uint8Array;
+  uBits: Uint8Array;
+  vBits: Uint8Array;
+}
+
 export interface HqcEncapsulation {
   ciphertext: HqcCiphertext;
   sharedSecret: Uint8Array;
   messageSeed: Uint8Array;
+  trace: EncapTrace;
+}
+
+export interface DecapTrace {
+  yu: Uint8Array;
+  noisyCodewordBits: Uint8Array; // first CODEWORD_BITS bits
+  rmBitErrors: number;
+  rsSymbolErrors: number;
+  decoded: boolean;
+}
+
+export interface HqcDecapsulation {
+  sharedSecret: Uint8Array;
+  recoveredSeed: Uint8Array;
+  verified: boolean;
+  trace: DecapTrace;
 }
 
 export interface AesEnvelope {
@@ -79,7 +123,14 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
   }
 };
 
-const ILLUSTRATIVE_DIMENSION = 1024;
+// Hand-picked illustrative parameters: large enough that QC structure is real, small enough
+// that the noise from x*r2 - y*r1 - y*e + epsilon stays inside the concatenated code's error
+// budget on essentially every run (verified empirically by the Verify panel).
+export const ILLUSTRATIVE_PARAMS: Record<HqcLevel, IllustrativeParams> = {
+  "hqc-128": { n: 384, w: 3, w_e: 3, w_r: 3, pkBytes: Math.ceil(384 / 8) * 2, ctBytes: Math.ceil(384 / 8) * 2 + 32 },
+  "hqc-192": { n: 512, w: 4, w_e: 4, w_r: 4, pkBytes: Math.ceil(512 / 8) * 2, ctBytes: Math.ceil(512 / 8) * 2 + 32 },
+  "hqc-256": { n: 768, w: 5, w_e: 5, w_r: 5, pkBytes: Math.ceil(768 / 8) * 2, ctBytes: Math.ceil(768 / 8) * 2 + 32 }
+};
 
 function randomBytes(len: number): Uint8Array {
   const out = new Uint8Array(len);
@@ -121,7 +172,7 @@ function xorBits(a: Uint8Array, b: Uint8Array): Uint8Array {
   return out;
 }
 
-function circulantMultiplyDenseSparse(h: Uint8Array, sparse: Uint32Array, n: number): Uint8Array {
+export function circulantMultiplyDenseSparse(h: Uint8Array, sparse: Uint32Array, n: number): Uint8Array {
   const out = new Uint8Array(n);
   for (const shift of sparse) {
     for (let i = 0; i < n; i += 1) {
@@ -139,7 +190,7 @@ function xorSparseNoise(target: Uint8Array, noise: Uint32Array): Uint8Array {
   return out;
 }
 
-function bitsToBytes(bits: Uint8Array): Uint8Array {
+export function bitsToBytes(bits: Uint8Array): Uint8Array {
   const out = new Uint8Array(Math.ceil(bits.length / 8));
   for (let i = 0; i < bits.length; i += 1) {
     out[i >> 3] |= bits[i] << (i & 7);
@@ -147,7 +198,7 @@ function bitsToBytes(bits: Uint8Array): Uint8Array {
   return out;
 }
 
-function bytesToBits(bytes: Uint8Array, n: number): Uint8Array {
+export function bytesToBits(bytes: Uint8Array, n: number): Uint8Array {
   const out = new Uint8Array(n);
   for (let i = 0; i < n; i += 1) {
     out[i] = (bytes[i >> 3] >> (i & 7)) & 1;
@@ -171,9 +222,7 @@ export function shortHex(bytes: Uint8Array, max = 96): string {
   const hex = Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  if (hex.length <= max) {
-    return hex;
-  }
+  if (hex.length <= max) return hex;
   return `${hex.slice(0, max)}...`;
 }
 
@@ -183,21 +232,29 @@ export function fullHex(bytes: Uint8Array): string {
     .join("");
 }
 
+function constantTimeEq(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let acc = 0;
+  for (let i = 0; i < a.length; i += 1) acc |= a[i] ^ b[i];
+  return acc === 0;
+}
+
 export async function generateIllustrativeKeyPair(level: HqcLevel): Promise<HqcKeyPair> {
   const params = HQC_PARAMS[level];
-  const n = Math.min(params.n, ILLUSTRATIVE_DIMENSION);
+  const ill = ILLUSTRATIVE_PARAMS[level];
+  const n = ill.n;
 
   const h = randomBitVector(n);
-  const x = randomSparse(n, params.w);
-  const y = randomSparse(n, params.w);
-  const e = randomSparse(n, params.w_e);
+  const x = randomSparse(n, ill.w);
+  const y = randomSparse(n, ill.w);
 
   const xDense = sparseToDense(n, x);
   const hTimesY = circulantMultiplyDenseSparse(h, y, n);
-  const s = xorSparseNoise(xorBits(xDense, hTimesY), e);
+  const s = xorBits(xDense, hTimesY); // s = x + h*y (no extra noise in standard HQC)
 
   return {
     params,
+    illustrative: ill,
     publicKey: { h, s },
     privateKey: { x, y }
   };
@@ -205,10 +262,13 @@ export async function generateIllustrativeKeyPair(level: HqcLevel): Promise<HqcK
 
 export async function encapsulateIllustrative(keyPair: HqcKeyPair): Promise<HqcEncapsulation> {
   const n = keyPair.publicKey.h.length;
-  const { w_r, w_e } = keyPair.params;
+  const { w_r, w_e } = keyPair.illustrative;
 
-  const messageSeed = randomBytes(32);
-  const codeword = encodeIllustrativeCodeword(messageSeed, n);
+  const messageSeed = randomBytes(SEED_BYTES);
+  const codewordBits = encodeConcatenated(messageSeed);
+
+  const codeword = new Uint8Array(n);
+  codeword.set(codewordBits.subarray(0, Math.min(CODEWORD_BITS, n)));
 
   const r1 = randomSparse(n, w_r);
   const r2 = randomSparse(n, w_r);
@@ -225,39 +285,63 @@ export async function encapsulateIllustrative(keyPair: HqcKeyPair): Promise<HqcE
   const u = bitsToBytes(uBits);
   const v = bitsToBytes(vBits);
 
-  const helperPad = await sha256([u, v, keyPair.publicKey.s]);
-  const d = new Uint8Array(messageSeed.length);
-  for (let i = 0; i < messageSeed.length; i += 1) {
-    d[i] = messageSeed[i] ^ helperPad[i];
-  }
-
+  const d = await sha256([messageSeed, u, v, keyPair.publicKey.s]);
   const sharedSecret = await sha256([messageSeed, u, v, d]);
 
   return {
     ciphertext: { u, v, d },
     sharedSecret,
-    messageSeed
+    messageSeed,
+    trace: {
+      messageSeed,
+      codewordBits,
+      r1,
+      r2,
+      e,
+      epsilon,
+      hr2,
+      sr2,
+      uBits,
+      vBits
+    }
   };
 }
 
 export async function decapsulateIllustrative(
   keyPair: HqcKeyPair,
   ciphertext: HqcCiphertext
-): Promise<{ sharedSecret: Uint8Array; recoveredSeed: Uint8Array; decoderBits: Uint8Array }> {
-  const helperPad = await sha256([ciphertext.u, ciphertext.v, keyPair.publicKey.s]);
-  const recoveredSeed = new Uint8Array(ciphertext.d.length);
+): Promise<HqcDecapsulation> {
+  const n = keyPair.publicKey.h.length;
 
-  for (let i = 0; i < ciphertext.d.length; i += 1) {
-    recoveredSeed[i] = ciphertext.d[i] ^ helperPad[i];
-  }
+  const uBits = bytesToBits(ciphertext.u, n);
+  const vBits = bytesToBits(ciphertext.v, n);
+  const yu = circulantMultiplyDenseSparse(uBits, keyPair.privateKey.y, n);
+  const noisy = xorBits(vBits, yu);
+  const noisyCodewordBits = noisy.slice(0, CODEWORD_BITS);
 
-  const decoded = decodeIllustrativeCodeword(bytesToBits(ciphertext.v, keyPair.publicKey.h.length), recoveredSeed);
-  const sharedSecret = await sha256([recoveredSeed, ciphertext.u, ciphertext.v, ciphertext.d]);
+  const decodeResult = decodeConcatenated(noisyCodewordBits);
+  const recoveredSeed = decodeResult.seed;
+
+  const expectedD = await sha256([recoveredSeed, ciphertext.u, ciphertext.v, keyPair.publicKey.s]);
+  const verified = decodeResult.decoded && constantTimeEq(expectedD, ciphertext.d);
+
+  // Implicit rejection: derive key from a fixed zero seed if verification fails.
+  // Real HQC uses sigma (a per-key random) plus extra hashing; we keep it simple but distinct.
+  const sharedSecret = verified
+    ? await sha256([recoveredSeed, ciphertext.u, ciphertext.v, ciphertext.d])
+    : await sha256([new Uint8Array(SEED_BYTES), ciphertext.u, ciphertext.v, ciphertext.d, Uint8Array.of(0xff)]);
 
   return {
     sharedSecret,
     recoveredSeed,
-    decoderBits: decoded
+    verified,
+    trace: {
+      yu,
+      noisyCodewordBits,
+      rmBitErrors: decodeResult.rmBitErrors,
+      rsSymbolErrors: decodeResult.rsSymbolErrors,
+      decoded: decodeResult.decoded
+    }
   };
 }
 
@@ -290,10 +374,53 @@ export async function decryptWithSharedSecret(
     envelope.ciphertext.byteOffset,
     envelope.ciphertext.byteLength
   );
-  const plainBuffer = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: ivView },
-    aesKey,
-    ctView
-  );
+  const plainBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivView }, aesKey, ctView);
   return new TextDecoder().decode(plainBuffer);
+}
+
+// Tamper helper: returns a new ciphertext with one bit flipped in u, v, or d.
+export function flipCiphertextBit(
+  ciphertext: HqcCiphertext,
+  field: "u" | "v" | "d",
+  bitIndex: number
+): HqcCiphertext {
+  const target = ciphertext[field];
+  const out = new Uint8Array(target);
+  const byteIdx = bitIndex >> 3;
+  const bit = bitIndex & 7;
+  if (byteIdx < out.length) out[byteIdx] ^= 1 << bit;
+  return {
+    u: field === "u" ? out : new Uint8Array(ciphertext.u),
+    v: field === "v" ? out : new Uint8Array(ciphertext.v),
+    d: field === "d" ? out : new Uint8Array(ciphertext.d)
+  };
+}
+
+// Inject `count` random bit flips into v (the codeword carrier).
+export function flipRandomBits(
+  ciphertext: HqcCiphertext,
+  field: "u" | "v",
+  count: number
+): { ciphertext: HqcCiphertext; positions: number[] } {
+  const target = field === "u" ? ciphertext.u : ciphertext.v;
+  const totalBits = target.length * 8;
+  const safeCount = Math.max(0, Math.min(count, totalBits));
+  const used = new Set<number>();
+  while (used.size < safeCount) {
+    const idx = crypto.getRandomValues(new Uint32Array(1))[0] % totalBits;
+    used.add(idx);
+  }
+  const positions = Array.from(used);
+  const out = new Uint8Array(target);
+  for (const idx of positions) {
+    out[idx >> 3] ^= 1 << (idx & 7);
+  }
+  return {
+    ciphertext: {
+      u: field === "u" ? out : new Uint8Array(ciphertext.u),
+      v: field === "v" ? out : new Uint8Array(ciphertext.v),
+      d: new Uint8Array(ciphertext.d)
+    },
+    positions
+  };
 }
