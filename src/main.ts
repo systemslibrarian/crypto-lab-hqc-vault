@@ -302,6 +302,13 @@ app.innerHTML = `
 
   <footer class="footer" aria-label="Footer">
     <a class="badge" href="https://github.com/systemslibrarian/crypto-lab-hqc-vault" target="_blank" rel="noreferrer">github.com/systemslibrarian/crypto-lab-hqc-vault</a>
+    <p class="related-demos">Related demos:
+      <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-kyber-vault/" target="_blank" rel="noreferrer">crypto-lab-kyber-vault</a>
+      <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-bike-vault/" target="_blank" rel="noreferrer">crypto-lab-bike-vault</a>
+      <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-mceliece-gate/" target="_blank" rel="noreferrer">crypto-lab-mceliece-gate</a>
+      <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-hqc-timing/" target="_blank" rel="noreferrer">crypto-lab-hqc-timing</a>
+      <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-syndrome-drain/" target="_blank" rel="noreferrer">crypto-lab-syndrome-drain</a>
+    </p>
     <p>So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31</p>
   </footer>
 
