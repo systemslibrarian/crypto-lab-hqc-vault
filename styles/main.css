@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --bg: #f4efe6;
   --bg-alt: #fff9f0;
   --panel: #fffdf8;
@@ -13,6 +14,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #111417;
   --bg-alt: #1a2026;
   --panel: #202731;
@@ -32,6 +34,7 @@ html, body {
   margin: 0;
   padding: 0;
   background: radial-gradient(circle at 20% 0%, var(--bg-alt), var(--bg));
+  background-color: var(--bg);
   color: var(--text);
   font-family: "Atkinson Hyperlegible", "Segoe UI", sans-serif;
   font-size: 16px;
@@ -44,7 +47,7 @@ body { min-height: 100vh; }
   position: absolute;
   left: 0.5rem;
   top: -4rem;
-  background: var(--panel);
+  background-color: var(--panel);
   color: var(--text);
   padding: 0.65rem 0.9rem;
   border-radius: 0.5rem;
@@ -60,7 +63,7 @@ body { min-height: 100vh; }
 }
 
 .hero, .panel, .footer {
-  background: var(--panel);
+  background-color: var(--panel);
   border: 1px solid var(--line);
   border-radius: 1rem;
   box-shadow: 0 8px 30px rgb(0 0 0 / 0.06);
@@ -80,7 +83,7 @@ body { min-height: 100vh; }
   height: 2.6rem;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: var(--panel);
+  background-color: var(--panel);
   color: var(--text);
   display: inline-flex;
   align-items: center;
@@ -90,7 +93,7 @@ body { min-height: 100vh; }
   cursor: pointer;
 }
 .theme-toggle:hover {
-  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--panel));
   color: var(--accent);
 }
 
@@ -100,7 +103,7 @@ h1, h2, h3 { line-height: 1.2; }
 .warning {
   border-left: 5px solid var(--accent-2);
   padding: 0.75rem;
-  background: color-mix(in srgb, var(--accent-2) 11%, transparent);
+  background-color: color-mix(in srgb, var(--accent-2) 11%, transparent);
   border-radius: 0.5rem;
 }
 
@@ -110,7 +113,7 @@ h1, h2, h3 { line-height: 1.2; }
   z-index: 50;
   margin-top: 0.9rem;
   padding: 0.5rem 0.6rem;
-  background: color-mix(in srgb, var(--panel) 92%, var(--bg-alt));
+  background-color: color-mix(in srgb, var(--panel) 92%, var(--bg-alt));
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   display: flex;
@@ -128,7 +131,7 @@ h1, h2, h3 { line-height: 1.2; }
 }
 .toc a:hover { border-color: var(--line); }
 .toc a.active {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 22%, transparent);
   border-color: var(--accent);
   color: var(--text);
   font-weight: 600;
@@ -148,13 +151,13 @@ h1, h2, h3 { line-height: 1.2; }
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--text);
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
   font-size: 0.9rem;
 }
-.chip.status { background: color-mix(in srgb, var(--accent-2) 18%, transparent); }
+.chip.status { background-color: color-mix(in srgb, var(--accent-2) 18%, transparent); }
 
 .btn, select, textarea, .badge { min-height: 44px; }
 
@@ -164,7 +167,15 @@ h1, h2, h3 { line-height: 1.2; }
   padding: 0.55rem 0.9rem;
   font: inherit;
   color: var(--text);
-  background: var(--panel);
+  background-color: var(--panel);
+}
+
+select {
+  appearance: none;
+  padding-right: 1.8rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%238b949e' stroke-width='2' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
 }
 
 .btn {
@@ -188,7 +199,7 @@ textarea {
   padding: 0.6rem;
   font: inherit;
   color: var(--text);
-  background: var(--panel);
+  background-color: var(--panel);
 }
 
 a { color: var(--accent); }
@@ -200,7 +211,7 @@ a { color: var(--accent); }
   padding: 0.55rem 0.9rem;
   display: inline-flex;
   align-items: center;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .table-wrap {
@@ -230,7 +241,7 @@ caption {
   border: 1px solid var(--line);
   border-radius: 0.65rem;
   padding: 0.75rem;
-  background: color-mix(in srgb, var(--bg-alt) 65%, var(--panel));
+  background-color: color-mix(in srgb, var(--bg-alt) 65%, var(--panel));
 }
 
 .hex {
@@ -247,7 +258,7 @@ caption {
   margin-left: 0.3rem;
   font-size: 0.75rem;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background-color: var(--panel);
   color: var(--muted);
   border-radius: 0.4rem;
   padding: 0.1rem 0.4rem;
@@ -261,7 +272,7 @@ caption {
   border: 1px solid var(--line);
   border-radius: 0.7rem;
   padding: 0.75rem;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .bars { margin-top: 0.8rem; display: grid; gap: 0.45rem; }
@@ -274,7 +285,7 @@ caption {
 }
 .bar-track {
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 60%, var(--bg-alt));
+  background-color: color-mix(in srgb, var(--panel) 60%, var(--bg-alt));
   border-radius: 999px;
   height: 20px;
 }
@@ -295,7 +306,7 @@ caption {
 /* glossary */
 .gloss {
   display: inline;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--text);
   border: 1px dashed color-mix(in srgb, var(--accent) 60%, var(--line));
   border-radius: 0.35rem;
@@ -305,12 +316,12 @@ caption {
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
-.gloss:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+.gloss:hover { background-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 
 .gloss-popover {
   position: absolute;
   max-width: 360px;
-  background: var(--panel);
+  background-color: var(--panel);
   border: 1px solid var(--accent);
   border-radius: 0.75rem;
   padding: 0.85rem;
@@ -320,7 +331,7 @@ caption {
 .gloss-popover h4 { margin: 0 0 0.4rem; }
 .gloss-popover p { margin: 0 0 0.6rem; font-size: 0.9rem; }
 .gloss-close {
-  background: var(--panel);
+  background-color: var(--panel);
   border: 1px solid var(--line);
   border-radius: 0.4rem;
   padding: 0.2rem 0.55rem;
@@ -342,7 +353,7 @@ caption {
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 0.8rem;
-  background: color-mix(in srgb, var(--bg-alt) 60%, var(--panel));
+  background-color: color-mix(in srgb, var(--bg-alt) 60%, var(--panel));
 }
 .qc-block { display: grid; gap: 0.5rem; }
 .qc-caption { margin: 0 0 0.4rem; font-size: 0.9rem; }
@@ -360,14 +371,14 @@ caption {
   justify-content: center;
   border: 1px solid var(--line);
   border-radius: 0.4rem;
-  background: var(--panel);
+  background-color: var(--panel);
   color: var(--muted);
   cursor: pointer;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.85rem;
 }
 .qc-bit.on {
-  background: color-mix(in srgb, var(--accent) 50%, var(--panel));
+  background-color: color-mix(in srgb, var(--accent) 40%, var(--panel));
   color: var(--text);
   border-color: var(--accent);
   font-weight: 700;
@@ -378,7 +389,6 @@ caption {
   align-items: center;
   gap: 0.5rem;
 }
-.qc-row.dim { opacity: 0.65; }
 .qc-label {
   font-family: "JetBrains Mono", monospace;
   font-size: 0.85rem;
@@ -397,13 +407,13 @@ caption {
   justify-content: center;
   border: 1px solid var(--line);
   border-radius: 0.25rem;
-  background: var(--panel);
+  background-color: var(--panel);
   font-family: "JetBrains Mono", monospace;
   font-size: 0.75rem;
   color: var(--muted);
 }
 .cell.on {
-  background: color-mix(in srgb, var(--accent-2) 40%, var(--panel));
+  background-color: color-mix(in srgb, var(--accent-2) 40%, var(--panel));
   color: var(--text);
   border-color: var(--accent-2);
   font-weight: 700;
@@ -417,7 +427,7 @@ caption {
   border: 1px solid var(--line);
   border-radius: 0.6rem;
   padding: 0.55rem 0.7rem;
-  background: color-mix(in srgb, var(--bg-alt) 50%, var(--panel));
+  background-color: color-mix(in srgb, var(--bg-alt) 50%, var(--panel));
 }
 .step > summary { cursor: pointer; font-weight: 600; }
 .step > div { margin-top: 0.4rem; }
@@ -444,10 +454,10 @@ caption {
   white-space: nowrap;
 }
 .sc-bar.naive {
-  background: linear-gradient(90deg, var(--accent-2), color-mix(in srgb, var(--accent-2) 40%, var(--panel)));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 40%, var(--panel)), color-mix(in srgb, var(--accent-2) 12%, var(--panel)));
 }
 .sc-bar.constant {
-  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 40%, var(--panel)));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 40%, var(--panel)), color-mix(in srgb, var(--accent) 12%, var(--panel)));
 }
 
 /* verifier */
@@ -459,7 +469,7 @@ caption {
   border-radius: 999px;
   overflow: hidden;
   vertical-align: middle;
-  background: var(--panel);
+  background-color: var(--panel);
   margin-right: 0.4rem;
 }
 .verif-fill {
