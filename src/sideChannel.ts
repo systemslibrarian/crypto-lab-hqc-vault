@@ -71,7 +71,7 @@ export function renderSideChannelChart(target: HTMLElement, result: SideChannelR
       const naiveWidth = Math.max(2, Math.round((result.naive[i] / max) * 100));
       const ctWidth = Math.max(2, Math.round((result.constant[i] / max) * 100));
       return `
-        <div class="sc-row">
+        <div class="sc-row" role="listitem">
           <span class="sc-label">marker @ ${pos}</span>
           <div class="sc-bars">
             <div class="sc-bar naive" style="width:${naiveWidth}%" title="naive: ${result.naive[i].toFixed(4)} ms">
