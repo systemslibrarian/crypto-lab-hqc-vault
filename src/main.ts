@@ -40,8 +40,17 @@ app.innerHTML = `
   <header class="hero" aria-label="Demo header" id="top">
     <span class="chip category" aria-label="Category chip">Post-Quantum KEM</span>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode"></button>
-    <h1>HQC Vault</h1>
-    <p class="subtitle">Code-based post-quantum KEM demo focused on Hamming Quasi-Cyclic construction, perfect correctness, and algorithmic diversity.</p>
+    <div class="cl-hero">
+      <div class="cl-hero-main">
+        <h1 class="cl-hero-title">HQC Vault</h1>
+        <p class="cl-hero-sub">Code-Based PQ KEM · Quasi-Cyclic Syndrome Decoding · FO Transform</p>
+        <p class="cl-hero-desc">Build an HQC keypair, then encapsulate and decapsulate through the full quasi-cyclic KEM — Reed-Muller + Reed-Solomon decoding and the FO re-encryption check — and wrap a message end-to-end with the derived AES-256-GCM DEM.</p>
+      </div>
+      <aside class="cl-hero-why" aria-label="Why it matters">
+        <span class="cl-hero-why-label">WHY IT MATTERS</span>
+        <p class="cl-hero-why-text">A quantum computer would break today's RSA and ECC key exchange. NIST is standardizing HQC as a code-based backup to lattice schemes, so a single mathematical break can't compromise every deployed handshake at once.</p>
+      </aside>
+    </div>
     <div class="chip-row" aria-label="Primitive chips">
       <span class="chip">HQC</span>
       <span class="chip">Quasi-Cyclic</span>
