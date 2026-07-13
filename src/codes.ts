@@ -301,6 +301,80 @@ function rmDecodeSymbol(received: Uint8Array): number {
   return m0 | (m1 << 1) | (m2 << 2) | (m3 << 3);
 }
 
+// -------------------- Introspection helpers for the two-layer visualizer --------------------
+// These call the SAME real decoders used by decapsulation; they only surface
+// intermediate results (per-block RM output, RS error positions) so the UI can
+// animate the actual mechanism instead of a mock-up.
+
+export interface ConcatTrace {
+  /** For each of the RS_N blocks: the 8 received bits, the RM-decoded symbol,
+   *  the RM-reencoded (corrected) bits, and how many bits RM flipped in that block. */
+  blocks: Array<{
+    received: number[];
+    corrected: number[];
+    symbol: number;
+    rmFixed: number;
+  }>;
+  /** Symbols after the RM layer, as fed to Reed-Solomon. */
+  rsInput: number[];
+  /** Whether RS decoded, the corrected symbols, and which block indices RS fixed. */
+  rsDecoded: boolean;
+  rsOutput: number[];
+  rsErrorPositions: number[];
+}
+
+export function traceConcatenated(received: Uint8Array): ConcatTrace {
+  const blocks: ConcatTrace["blocks"] = [];
+  const rsInput = new Array<number>(RS_N);
+  for (let i = 0; i < RS_N; i += 1) {
+    const block = received.slice(i * RM_N, (i + 1) * RM_N);
+    const sym = rmDecodeSymbol(block);
+    const reencoded = rmEncodeSymbol(sym);
+    let rmFixed = 0;
+    for (let j = 0; j < RM_N; j += 1) if (block[j] !== reencoded[j]) rmFixed += 1;
+    rsInput[i] = sym;
+    blocks.push({
+      received: Array.from(block),
+      corrected: Array.from(reencoded),
+      symbol: sym,
+      rmFixed
+    });
+  }
+
+  const syn = rsSyndromes(rsInput);
+  if (syn.every((s) => s === 0)) {
+    return { blocks, rsInput, rsDecoded: true, rsOutput: rsInput.slice(), rsErrorPositions: [] };
+  }
+  const Lambda = rsBerlekampMassey(syn);
+  const degLambda = Lambda.length - 1;
+  if (degLambda === 0 || degLambda > RS_T) {
+    return { blocks, rsInput, rsDecoded: false, rsOutput: rsInput.slice(), rsErrorPositions: [] };
+  }
+  const errPos = rsChienSearch(Lambda);
+  if (errPos.length !== degLambda) {
+    return { blocks, rsInput, rsDecoded: false, rsOutput: rsInput.slice(), rsErrorPositions: [] };
+  }
+  const errVal = rsForney(syn, Lambda, errPos);
+  const corrected = rsInput.slice();
+  for (let i = 0; i < errPos.length; i += 1) corrected[errPos[i]] ^= errVal[i];
+  const verifySyn = rsSyndromes(corrected);
+  if (!verifySyn.every((s) => s === 0)) {
+    return { blocks, rsInput, rsDecoded: false, rsOutput: rsInput.slice(), rsErrorPositions: [] };
+  }
+  return {
+    blocks,
+    rsInput,
+    rsDecoded: true,
+    rsOutput: corrected,
+    rsErrorPositions: errPos.slice().sort((a, b) => a - b)
+  };
+}
+
+/** Encode a fixed demo seed and return the clean 120-bit codeword for the strip. */
+export function encodeDemoStrip(seed: Uint8Array): Uint8Array {
+  return encodeConcatenated(seed);
+}
+
 // -------------------- Concatenated code public API --------------------
 
 export const SEED_BYTES = 2; // RS_K=4 nibbles = 16 bits, packed cleanly into 2 bytes

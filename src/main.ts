@@ -19,6 +19,7 @@ import {
   type HqcKeyPair,
   type HqcLevel
 } from "./hqc";
+import { mountConcatVisualizer } from "./concatViz";
 import { mountQcVisualizer } from "./qcViz";
 import { renderSideChannelChart, runSideChannelDemo } from "./sideChannel";
 import {
@@ -95,12 +96,21 @@ app.innerHTML = `
 
     <section class="panel" id="panel-construction" aria-labelledby="panel-construction-title">
       <h2 id="panel-construction-title">2. How HQC is built</h2>
-      <p>
-        ${withGlossary("HQC ('Hamming Quasi-Cyclic') derives its security from the [[DSD]] problem in the [[quasi-cyclic]] setting: given s = x + h·y where x, y are sparse, recovering them is conjectured to be hard. The same syndrome decoding problem has resisted 45 years of attack since [[McEliece]].")}
-      </p>
-      <p>
-        ${withGlossary("To turn that into a [[KEM]], HQC needs an error-correcting code that can clean up the noise terms introduced during encapsulation. It uses a concatenation of two layers — an inner [[Reed-Muller]] code that cleans bit-level noise, and an outer [[Reed-Solomon]] code that cleans whatever symbol-level errors slip past.")}
-      </p>
+      <p class="lede">Start with one line, then add one idea at a time.</p>
+      <ol class="build-steps">
+        <li>The public key is a single noisy sum: <code>s = x + h·y</code>.</li>
+        <li>Here <code>h</code> is a big public random value, and <code>x</code> and <code>y</code> are the private key — two vectors that are almost all zeros (only a few bits set, so they are called <em>sparse</em>).</li>
+        <li>Anyone can see <code>s</code> and <code>h</code>. The whole security bet is that recovering the sparse <code>x</code> and <code>y</code> from that sum is hard. That's it — that one recovery problem is what a quantum computer is believed unable to shortcut.</li>
+        <li>To send a secret, the sender adds their own fresh noise on top of <code>s</code>. The receiver, who knows <code>y</code>, can subtract most of it back off — but a little leftover noise remains, so we need a way to clean it up.</li>
+        <li>That cleanup is an <strong>error-correcting code</strong>: a stack of two layers that together scrub the leftover noise so both sides land on the exact same secret. You will watch those two layers work in panel 2b below.</li>
+      </ol>
+      <details class="aside">
+        <summary>Formal names for what you just read</summary>
+        <div>
+          <p class="small">${withGlossary("The 'recovering sparse x, y from s = x + h·y is hard' bet is the [[DSD]] assumption; because <code>h</code> is built from [[circulant]] blocks (the [[quasi-cyclic]] structure that shrinks the keys), HQC's exact assumption is [[QCSD]]. This is the same family of syndrome-decoding hardness that has resisted attack for 45 years since [[McEliece]] (1978).")}</p>
+          <p class="small">${withGlossary("Turning a one-shot secret into a reusable primitive makes it a [[KEM]]. The two cleanup layers are an inner [[Reed-Muller]] code (fixes stray bits) wrapped by an outer [[Reed-Solomon]] code (fixes whole broken blocks).")}</p>
+        </div>
+      </details>
       <div class="viz-grid" role="list" aria-label="Code construction layers">
         ${concatenatedCodeLayers
           .map(
@@ -118,6 +128,20 @@ app.innerHTML = `
         ${withGlossary("A [[circulant]] is fully described by its first row; multiplying it against a sparse vector reduces to XOR-ing a few rotations. That is the whole reason HQC keys fit in kilobytes instead of megabytes.")}
       </p>
       <div id="qc-viz"></div>
+    </section>
+
+    <section class="panel" id="panel-concat" aria-labelledby="panel-concat-title">
+      <h2 id="panel-concat-title">2b. The two-layer error-correcting code — click to break it</h2>
+      <p>
+        When the receiver subtracts <code>y·u</code> from <code>v</code>, they get the sender's codeword
+        <em>plus a little leftover noise</em>. HQC scrubs that noise with two stacked codes. Watch them
+        work: flip bits below and the counters and per-block badges update from the real decoder.
+      </p>
+      <ul class="two-layer-key">
+        <li><strong>Inner — Reed-Muller:</strong> inside every 8-bit block it takes a majority vote and fixes one stray bit.</li>
+        <li><strong>Outer — Reed-Solomon:</strong> if a block takes too much noise and flips to the wrong symbol, RS treats that whole block as one symbol error and rebuilds it (up to 5 of the 15 blocks).</li>
+      </ul>
+      <div id="concat-viz"></div>
     </section>
 
     <section class="panel" id="panel-keygen" aria-labelledby="panel-keygen-title">
@@ -355,6 +379,7 @@ let stepMode = false;
 setupToc([
   { id: "panel-threat", label: "1. Why PQ" },
   { id: "panel-construction", label: "2. How HQC is built" },
+  { id: "panel-concat", label: "2b. Two-layer code" },
   { id: "panel-keygen", label: "3. Keygen" },
   { id: "panel-encap", label: "4. Encap / decap" },
   { id: "panel-aes", label: "5. AES" },
@@ -369,6 +394,7 @@ setupToc([
 setupGlossary(GLOSSARY);
 setupCopyButtons();
 mountQcVisualizer();
+mountConcatVisualizer();
 
 // ---------- comparison bars ----------
 
@@ -507,7 +533,7 @@ function renderSteps(enc: HqcEncapsulation, dec: { rmBitErrors: number; rsSymbol
       detail: dec.verified ? "<strong>d′ = d</strong> → accept, derive K from the recovered seed." : "<strong>d′ ≠ d</strong> → implicit rejection, derive a synthetic K."
     }
   ];
-  stepContainer.innerHTML = steps
+  stepContainer.innerHTML = `${foDiagramHtml()}${steps
     .map(
       (s, i) => `
       <details class="step" ${i === 0 ? "open" : ""}>
@@ -515,7 +541,80 @@ function renderSteps(enc: HqcEncapsulation, dec: { rmBitErrors: number; rsSymbol
         <div>${s.detail}</div>
       </details>`
     )
+    .join("")}`;
+}
+
+// A tiny wiring diagram of the FO transform: which inputs feed the tag d versus the
+// shared secret K. Seeing that d and K share m,u,v but differ (s vs d) is what makes
+// the "re-derive d and compare byte-for-byte" rejection idea click.
+function foDiagramHtml(): string {
+  return `
+    <figure class="fo-diagram" aria-label="Dependency diagram: which inputs feed the FO tag d versus the shared secret K">
+      <figcaption>How <code>d</code> and <code>K</code> are wired</figcaption>
+      <div class="fo-wire">
+        <div class="fo-inputs" aria-hidden="true">
+          <span class="fo-node">m</span><span class="fo-node">u</span><span class="fo-node">v</span>
+          <span class="fo-node fo-s">s</span><span class="fo-node fo-d">d</span>
+        </div>
+        <div class="fo-eqs">
+          <p class="fo-eq"><span class="fo-out">d</span> = SHA-256( <span class="fo-shared">m, u, v</span>, <span class="fo-s-in">s</span> )</p>
+          <p class="fo-eq"><span class="fo-out">K</span> = SHA-256( <span class="fo-shared">m, u, v</span>, <span class="fo-d-in">d</span> )</p>
+        </div>
+      </div>
+      <p class="small fo-note">
+        Both hashes bind the same <span class="fo-shared-txt">m, u, v</span>. The tag <code>d</code> also
+        folds in the public <code>s</code>; the secret <code>K</code> folds in <code>d</code> itself. On decap
+        the receiver re-derives <code>d</code> from the <em>recovered</em> <code>m</code> and compares it
+        byte-for-byte. Tamper with <code>u</code>, <code>v</code>, or <code>d</code> and the recomputed
+        <code>d</code> no longer matches — so <code>K</code> can never collide with the honest one.
+      </p>
+    </figure>`;
+}
+
+// ---------- ciphertext component bars (visual, not just hex) ----------
+// Render u, v, d as labeled bars that show each component's SHAPE, using the real
+// encapsulation trace. v shows its codeword region vs noise region with the actual
+// epsilon noise bits tinted; u is masked randomness; d is a fixed-size tag.
+
+function componentBarsHtml(enc: HqcEncapsulation): string {
+  const n = enc.trace.vBits.length;
+  const codewordLen = Math.min(CODEWORD_BITS, n);
+
+  // v: split into codeword region (first codewordLen bits) and the rest. Tint the
+  // actual epsilon noise positions that fall inside the codeword region.
+  const epsInCodeword = Array.from(enc.trace.epsilon).filter((p) => p < codewordLen);
+  const epsMarks = epsInCodeword
+    .map((p) => `<span class="cb-tick" style="left:${((p + 0.5) / n) * 100}%" aria-hidden="true"></span>`)
     .join("");
+  const codewordPct = (codewordLen / n) * 100;
+
+  const vBar = `
+    <div class="cb-row">
+      <span class="cb-label"><code>v</code><small>codeword + noise</small></span>
+      <div class="cb-track" role="img" aria-label="v is a ${n}-bit vector: the first ${codewordLen} bits carry the error-corrected codeword, the remaining bits are masking; ${epsInCodeword.length} tinted ticks mark injected epsilon noise bits inside the codeword region">
+        <div class="cb-seg cb-codeword" style="width:${codewordPct}%"><span>codeword region</span></div>
+        <div class="cb-seg cb-mask" style="width:${100 - codewordPct}%"><span>masking</span></div>
+        ${epsMarks}
+      </div>
+    </div>`;
+
+  const uBar = `
+    <div class="cb-row">
+      <span class="cb-label"><code>u</code><small>masked randomness</small></span>
+      <div class="cb-track" role="img" aria-label="u is a ${n}-bit vector of masked randomness (r1 + h times r2 + e); it carries no readable structure by design">
+        <div class="cb-seg cb-rand" style="width:100%"><span>uniform-looking mask</span></div>
+      </div>
+    </div>`;
+
+  const dBar = `
+    <div class="cb-row">
+      <span class="cb-label"><code>d</code><small>FO tag</small></span>
+      <div class="cb-track" role="img" aria-label="d is a fixed 32-byte SHA-256 verification tag; its whole job is a byte-for-byte equality check">
+        <div class="cb-seg cb-tag" style="width:100%"><span>32-byte fixed tag</span></div>
+      </div>
+    </div>`;
+
+  return `<div class="cb-bars" aria-label="Ciphertext component shapes">${vBar}${uBar}${dBar}</div>`;
 }
 
 // ---------- encap / decap ----------
@@ -546,9 +645,15 @@ if (encapBtn && kemOutput) {
            &nbsp;FO verified: <strong class="${dec.verified ? "ok" : "bad"}">${dec.verified}</strong>
            &nbsp;RM bit errors corrected: <strong>${dec.trace.rmBitErrors}</strong>
            &nbsp;RS symbol errors corrected: <strong>${dec.trace.rsSymbolErrors >= 0 ? dec.trace.rsSymbolErrors : "—"}</strong></p>
-        <p>u = <code class="hex">${shortHex(enc.ciphertext.u)}</code></p>
-        <p>v = <code class="hex">${shortHex(enc.ciphertext.v)}</code></p>
-        <p>d = <code class="hex">${shortHex(enc.ciphertext.d)}</code></p>
+        ${componentBarsHtml(enc)}
+        <details class="aside">
+          <summary>Show the raw hex for u, v, d</summary>
+          <div>
+            <p>u = <code class="hex">${shortHex(enc.ciphertext.u)}</code></p>
+            <p>v = <code class="hex">${shortHex(enc.ciphertext.v)}</code></p>
+            <p>d = <code class="hex">${shortHex(enc.ciphertext.d)}</code></p>
+          </div>
+        </details>
       `;
       renderSteps(enc, {
         rmBitErrors: dec.trace.rmBitErrors,

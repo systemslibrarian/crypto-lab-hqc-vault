@@ -17,6 +17,8 @@ crypto-lab-hqc-vault is a browser-based educational demo centered on HQC, with R
 
 The demo lets you choose HQC-128, HQC-192, or HQC-256, generate an illustrative keypair, and run encapsulation plus decapsulation in the browser. It also supports encrypting and decrypting a message with AES-256-GCM after the shared secret is derived, so the KEM+DEM flow is visible end to end. A separate Comparison level control updates the HQC vs BIKE vs ML-KEM table and size bars.
 
+Two hands-on visualizers make the mechanism concrete rather than hex-only. The quasi-cyclic explorer lets you toggle the sparse vector `y` and optionally overlay the full circulant matrix of `h`, so you can see that "XOR of rotations" is literally the matrix-times-vector product `M·y` — the reason HQC keys are kilobytes, not megabytes. The two-layer code explorer shows a real 120-bit codeword as 15 blocks × 8 bits: inject bit errors and watch the inner Reed-Muller code fix a single stray bit per block by majority vote, while a whole block that exceeds RM's budget is repaired by the outer Reed-Solomon code as one symbol error. Every counter comes from the same decoder used in decapsulation, so nothing shown is faked. Encapsulation output also renders `u`, `v`, and `d` as labeled shape bars, and the step-through includes a wiring diagram of how the FO tag `d` and shared secret `K` depend on their inputs.
+
 ## What Can Go Wrong
 
 - Side-channel leakage in sparse-vector arithmetic or decoding code. HQC implementations manipulate secret sparse supports and decoder-related state, so variable-time behavior can leak structure that should stay secret.

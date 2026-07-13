@@ -87,16 +87,21 @@ export function renderSideChannelChart(target: HTMLElement, result: SideChannelR
 
   target.innerHTML = `
     <p class="small">
-      Each row places a secret marker at a different index of a 4 KB array, then averages
-      ${ROUNDS} lookups. The naive scan returns early when it hits the marker, so its timing
-      grows linearly with the secret position. The constant-time scan visits every byte
-      regardless of where the marker sits.
+      <strong>What each row means:</strong> the y-axis label <em>"marker @ N"</em> is where a single
+      secret bit sits — think of it as one set position in HQC's sparse private support (the demo uses
+      an arbitrary array index here, but in the real scheme that index <em>is</em> a bit of the private
+      key). The x-axis (bar length) is measured time: milliseconds averaged over ${ROUNDS} lookups.
+      The naive scan returns early when it hits the marker, so its time grows with the secret's
+      position — the bar length leaks the secret. The constant-time scan visits every byte regardless,
+      so its bars stay flat.
     </p>
-    <div class="sc-chart" role="list" aria-label="Lookup timings by marker position">${rows}</div>
+    <div class="sc-axis" aria-hidden="true"><span>secret bit position ↓</span><span>time (ms) →</span></div>
+    <div class="sc-chart" role="list" aria-label="Lookup time (milliseconds, longer bar = slower) by secret bit position">${rows}</div>
     <p class="small strong">
-      A real HQC attacker measures this difference across many encapsulations to recover
-      the support of the sparse secret. That is why production HQC decoders fold every
-      branch and every table access through constant-time primitives.
+      Read the naive bars top-to-bottom: their growing length is the secret's position leaking out.
+      A real HQC attacker measures exactly this across many encapsulations to reconstruct the sparse
+      support of the private key. That is why production HQC decoders fold every branch and every
+      table access through constant-time primitives.
     </p>
   `;
 }
