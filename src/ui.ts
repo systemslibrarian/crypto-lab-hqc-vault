@@ -75,7 +75,7 @@ export function setupGlossary(terms: Record<string, GlossTerm>): void {
     const term = glossaryTerms[key];
     if (!term) return;
     popover.innerHTML = `
-      <h4>${escapeHtml(term.short)}</h4>
+      <h3>${escapeHtml(term.short)}</h3>
       <p>${escapeHtml(term.long)}</p>
       <button type="button" class="gloss-close" aria-label="Close definition">Close</button>
     `;

@@ -100,7 +100,6 @@ body { min-height: 100vh; }
 h1, h2, h3 { line-height: 1.2; }
 .subtitle { max-width: 72ch; }
 
-/* BEGIN cl-hero standard — managed, keep in sync across fleet */
 .cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
 .cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
 .cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em;}
@@ -109,8 +108,7 @@ h1, h2, h3 { line-height: 1.2; }
 .cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--line);border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in oklab,var(--accent) 6%,transparent);}
 .cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;}
 .cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;}
-@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}}
-/* END cl-hero standard */
+@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}.cl-hero-main{flex-basis:auto;min-width:0;}}
 
 .warning {
   border-left: 5px solid var(--accent-2);
@@ -140,7 +138,14 @@ h1, h2, h3 { line-height: 1.2; }
   padding: 0.25rem 0.55rem;
   border-radius: 999px;
   border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
+/* With 44px-tall tap targets the 13-item chip bar wraps to several rows; keeping
+   it sticky would cover most of a 360px-wide viewport, so it only sticks on wide
+   screens. */
+@media (max-width: 759px) { .toc { position: static; } }
 .toc a:hover { border-color: var(--line); }
 .toc a.active {
   background-color: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -171,7 +176,9 @@ h1, h2, h3 { line-height: 1.2; }
 }
 .chip.status { background-color: color-mix(in srgb, var(--accent-2) 18%, transparent); }
 
-.btn, select, textarea, .badge { min-height: 44px; }
+.btn, select, textarea, .badge, input[type="number"] { min-height: 44px; }
+/* Range thumbs are ~16px tall by default; give the control a 44px tap area. */
+input[type="range"] { min-height: 44px; }
 
 .btn, select, input[type="number"] {
   border-radius: 0.6rem;
@@ -224,6 +231,10 @@ a { color: var(--accent); }
   display: inline-flex;
   align-items: center;
   background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* Repo/demo URLs are unbroken strings; without this the footer badge is wider
+     than a 360px viewport and pushes the page into horizontal scroll. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .table-wrap {
@@ -275,6 +286,11 @@ caption {
   border-radius: 0.4rem;
   padding: 0.1rem 0.4rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
 
@@ -330,9 +346,10 @@ caption {
 }
 .gloss:hover { background-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 
+.gloss-popover h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
 .gloss-popover {
   position: absolute;
-  max-width: 360px;
+  max-width: min(360px, calc(100vw - 24px));
   background-color: var(--panel);
   border: 1px solid var(--accent);
   border-radius: 0.75rem;
@@ -340,7 +357,6 @@ caption {
   box-shadow: 0 14px 40px rgb(0 0 0 / 0.18);
   z-index: 200;
 }
-.gloss-popover h4 { margin: 0 0 0.4rem; }
 .gloss-popover p { margin: 0 0 0.6rem; font-size: 0.9rem; }
 .gloss-close {
   background-color: var(--panel);
@@ -349,6 +365,11 @@ caption {
   padding: 0.2rem 0.55rem;
   font: inherit;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .glossary-list { display: grid; gap: 0.5rem; }
@@ -376,8 +397,8 @@ caption {
   margin-bottom: 0.4rem;
 }
 .qc-bit {
-  width: 2rem;
-  height: 2rem;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -541,9 +562,11 @@ caption {
 .cc-block.rmfixed { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .cc-block.rsrepaired { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus) inset; }
 .cc-block.failed { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad) inset; }
+/* 120 bits laid out as 15 blocks of 8; 44px cells would overflow a 360px
+   viewport, so these get the 24px floor instead. See report. */
 .cc-bit {
-  width: 1.35rem;
-  height: 1.5rem;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

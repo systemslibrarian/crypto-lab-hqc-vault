@@ -38,7 +38,7 @@ if (!app) throw new Error("Missing app root");
 
 app.innerHTML = `
 <div class="page" aria-label="HQC Vault interactive demo">
-  <header class="hero" aria-label="Demo header" id="top">
+  <header class="hero" role="group" aria-label="Demo header" id="top">
     <span class="chip category" aria-label="Category chip">Post-Quantum KEM</span>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode"></button>
     <div class="cl-hero">
