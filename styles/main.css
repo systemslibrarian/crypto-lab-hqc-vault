@@ -6,6 +6,14 @@
   --text: #1f1b16;
   --muted: #4c4337;
   --line: #d4c8b6;
+  /* Control boundaries only (select, number input, textarea, and the .btn that
+     shares their rule). Those controls are filled with --panel — the exact colour
+     of the card behind them, 1.00:1 — so the border is the only thing that makes
+     the control visible, and WCAG 2.1 SC 1.4.11 requires 3:1. --line measured
+     1.62:1 at best / 1.02:1 at worst; --line-strong is 4.00:1 on --panel, 3.55:1
+     on --bg, 3.88:1 on --bg-alt. --line stays as-is for decorative rules (card
+     outlines, dividers, table rules, chips, badges). */
+  --line-strong: #857d71;
   --accent: #0f6a55;
   --accent-2: #b3432f;
   --focus: #005fcc;
@@ -21,6 +29,8 @@
   --text: #f1f4f8;
   --muted: #ccd3dc;
   --line: #324052;
+  /* 3.45:1 on --panel, 4.24:1 on --bg, 3.77:1 on --bg-alt (was 1.75:1 / 1.43:1). */
+  --line-strong: #6f7a88;
   --accent: #5fe0b5;
   --accent-2: #ff9878;
   --focus: #8cc2ff;
@@ -182,7 +192,7 @@ input[type="range"] { min-height: 44px; }
 
 .btn, select, input[type="number"] {
   border-radius: 0.6rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   padding: 0.55rem 0.9rem;
   font: inherit;
   color: var(--text);
@@ -214,7 +224,7 @@ input[type="range"] {
 textarea {
   width: 100%;
   border-radius: 0.6rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   padding: 0.6rem;
   font: inherit;
   color: var(--text);
