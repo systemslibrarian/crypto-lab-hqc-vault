@@ -170,7 +170,7 @@ app.innerHTML = `
         <button id="step-toggle" class="btn secondary" aria-pressed="false">Show step-by-step</button>
       </div>
       <p class="small">
-        ${withGlossary("Encap chooses a random message seed, encodes it via the concatenated code, and ships u = r1 + h·r2 + e and v = codeword + s·r2 + ε. Decap computes v − y·u — which equals codeword plus a small noise term — and runs the decoder. The helper value d is the [[FO]] verification tag that lifts the scheme from CPA to [[CCA]].")}
+        ${withGlossary("Encap chooses a random message seed, encodes it via the concatenated code, and ships u = r1 + h·r2 and v = codeword + s·r2 + e. Decap computes v − y·u — which equals codeword plus a small noise term — and runs the decoder. The helper value d is the [[FO]] verification tag that lifts the scheme from CPA to [[CCA]].")}
       </p>
       <div id="kem-output" class="output" aria-live="polite"></div>
       <div id="kem-steps" class="kem-steps" hidden></div>
@@ -240,7 +240,7 @@ app.innerHTML = `
       <h2 id="panel-verify-title">9. Empirical correctness verifier</h2>
       <p>
         Run many independent keypairs and ciphertexts through the full encap/decap loop.
-        The clean rate measures whether perfect correctness actually holds on the chosen
+        The clean rate measures how often decapsulation succeeds on the chosen
         illustrative parameters; the flip table measures the code's error budget without
         the FO check rejecting first.
       </p>
@@ -505,15 +505,15 @@ function renderSteps(enc: HqcEncapsulation, dec: { rmBitErrors: number; rsSymbol
       detail: `codeword bits (${CODEWORD_BITS} total): <code class="hex">${Array.from(enc.trace.codewordBits).join("")}</code>`
     },
     {
-      title: "3. Sample sparse randomness (r1, r2, e, ε)",
+      title: "3. Sample sparse randomness (r1, r2, e)",
       detail: `r1 supports = [${Array.from(enc.trace.r1).slice(0, 12).join(", ")}${enc.trace.r1.length > 12 ? ", …" : ""}]<br>r2 supports = [${Array.from(enc.trace.r2).slice(0, 12).join(", ")}${enc.trace.r2.length > 12 ? ", …" : ""}]`
     },
     {
-      title: "4. Compute u = r1 + h·r2 + e",
+      title: "4. Compute u = r1 + h·r2",
       detail: `u (hex) = <code class="hex">${shortHex(enc.ciphertext.u)}</code>`
     },
     {
-      title: "5. Compute v = codeword + s·r2 + ε",
+      title: "5. Compute v = codeword + s·r2 + e",
       detail: `v (hex) = <code class="hex">${shortHex(enc.ciphertext.v)}</code>`
     },
     {
@@ -574,15 +574,15 @@ function foDiagramHtml(): string {
 // ---------- ciphertext component bars (visual, not just hex) ----------
 // Render u, v, d as labeled bars that show each component's SHAPE, using the real
 // encapsulation trace. v shows its codeword region vs noise region with the actual
-// epsilon noise bits tinted; u is masked randomness; d is a fixed-size tag.
+// error-vector e bits tinted; u is masked randomness; d is a fixed-size tag.
 
 function componentBarsHtml(enc: HqcEncapsulation): string {
   const n = enc.trace.vBits.length;
   const codewordLen = Math.min(CODEWORD_BITS, n);
 
   // v: split into codeword region (first codewordLen bits) and the rest. Tint the
-  // actual epsilon noise positions that fall inside the codeword region.
-  const epsInCodeword = Array.from(enc.trace.epsilon).filter((p) => p < codewordLen);
+  // actual error-vector e positions that fall inside the codeword region.
+  const epsInCodeword = Array.from(enc.trace.e).filter((p) => p < codewordLen);
   const epsMarks = epsInCodeword
     .map((p) => `<span class="cb-tick" style="left:${((p + 0.5) / n) * 100}%" aria-hidden="true"></span>`)
     .join("");
@@ -591,7 +591,7 @@ function componentBarsHtml(enc: HqcEncapsulation): string {
   const vBar = `
     <div class="cb-row">
       <span class="cb-label"><code>v</code><small>codeword + noise</small></span>
-      <div class="cb-track" role="img" aria-label="v is a ${n}-bit vector: the first ${codewordLen} bits carry the error-corrected codeword, the remaining bits are masking; ${epsInCodeword.length} tinted ticks mark injected epsilon noise bits inside the codeword region">
+      <div class="cb-track" role="img" aria-label="v is a ${n}-bit vector: the first ${codewordLen} bits carry the error-corrected codeword, the remaining bits are masking; ${epsInCodeword.length} tinted ticks mark injected error-vector e bits inside the codeword region">
         <div class="cb-seg cb-codeword" style="width:${codewordPct}%"><span>codeword region</span></div>
         <div class="cb-seg cb-mask" style="width:${100 - codewordPct}%"><span>masking</span></div>
         ${epsMarks}
@@ -601,7 +601,7 @@ function componentBarsHtml(enc: HqcEncapsulation): string {
   const uBar = `
     <div class="cb-row">
       <span class="cb-label"><code>u</code><small>masked randomness</small></span>
-      <div class="cb-track" role="img" aria-label="u is a ${n}-bit vector of masked randomness (r1 + h times r2 + e); it carries no readable structure by design">
+      <div class="cb-track" role="img" aria-label="u is a ${n}-bit vector of masked randomness (r1 + h times r2); it carries no readable structure by design">
         <div class="cb-seg cb-rand" style="width:100%"><span>uniform-looking mask</span></div>
       </div>
     </div>`;

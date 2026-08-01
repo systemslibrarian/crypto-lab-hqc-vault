@@ -25,7 +25,7 @@ export const comparisonRows: KemRow[] = [
     encapKCycles: 204,
     decapKCycles: 362,
     assumption: "QCSD/DSD over quasi-cyclic codes",
-    correctness: "Perfect correctness",
+    correctness: "DFR < 2^-128 (analysed, non-zero)",
     source: "HQC Round-4 submission (Table 6, Table 9)"
   },
   {
@@ -67,7 +67,7 @@ export const comparisonRows: KemRow[] = [
     encapKCycles: 465,
     decapKCycles: 755,
     assumption: "QCSD/DSD over quasi-cyclic codes",
-    correctness: "Perfect correctness",
+    correctness: "DFR < 2^-192 (analysed, non-zero)",
     source: "HQC Round-4 submission (Table 6, Table 9)"
   },
   {
@@ -109,7 +109,7 @@ export const comparisonRows: KemRow[] = [
     encapKCycles: 904,
     decapKCycles: 1505,
     assumption: "QCSD/DSD over quasi-cyclic codes",
-    correctness: "Perfect correctness",
+    correctness: "DFR < 2^-256 (analysed, non-zero)",
     source: "HQC Round-4 submission (Table 6, Table 9)"
   },
   {

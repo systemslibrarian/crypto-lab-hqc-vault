@@ -19,7 +19,7 @@ export const GLOSSARY: Record<string, GlossTerm> = {
   },
   dfr: {
     short: "DFR (Decoding Failure Rate)",
-    long: "The probability that a KEM's decoder cannot recover the message from a valid ciphertext, taken over the randomness of key generation and encapsulation. HQC's concatenated code is designed for perfect correctness (DFR = 0); BIKE only achieves a small, parameterized DFR like 2^-128."
+    long: "The probability that a KEM's decoder cannot recover the message from a valid ciphertext, taken over the randomness of key generation and encapsulation. HQC's DFR is small but NOT zero: its concatenated code is parameterised so the analysed DFR stays below 2^-128, 2^-192, and 2^-256 at the three security levels. BIKE targets a comparable bound; Classic McEliece is the code-based KEM whose Goppa decoding gives DFR = 0."
   },
   fo: {
     short: "FO Transform (Fujisaki–Okamoto)",
@@ -59,7 +59,7 @@ export const GLOSSARY: Record<string, GlossTerm> = {
   },
   bike: {
     short: "BIKE",
-    long: "Bit-Flipping Key Encapsulation. Another QC-based KEM that uses QC-MDPC decoding instead of HQC's concatenated codes. Smaller artifacts than HQC but a non-zero decoding failure rate is a structural design choice."
+    long: "Bit-Flipping Key Encapsulation. Another QC-based KEM that uses QC-MDPC decoding instead of HQC's concatenated codes. Smaller artifacts than HQC; like HQC it accepts a small, parameterised decoding failure rate rather than zero, but BIKE's bound rests on extrapolated simulation where HQC's follows from a closed-form analysis."
   },
   mceliece: {
     short: "Classic McEliece (1978)",

@@ -1,7 +1,7 @@
-// Concatenated code: Reed-Solomon (15, 5) over GF(16) outer + Reed-Muller (1, 3) inner.
-// Outer: 5 message nibbles -> 15 codeword nibbles, corrects up to 5 symbol errors.
+// Concatenated code: Reed-Solomon (15, 4) over GF(16) outer + Reed-Muller (1, 3) inner.
+// Outer: 4 message nibbles -> 15 codeword nibbles, corrects up to 5 symbol errors.
 // Inner: each 4-bit symbol -> 8-bit RM codeword (distance 4, corrects 1 bit error).
-// Together: 20-bit seed -> 120-bit codeword, with majority-logic + Berlekamp-Massey decoders.
+// Together: 16-bit seed -> 120-bit codeword, with majority-logic + Berlekamp-Massey decoders.
 
 export interface DecoderLayer {
   id: string;
@@ -18,15 +18,15 @@ export const concatenatedCodeLayers: DecoderLayer[] = [
   },
   {
     id: "rs",
-    title: "Outer Layer: Reed-Solomon (15,5) over GF(16)",
+    title: "Outer Layer: Reed-Solomon (15,4) over GF(16)",
     detail:
-      "The 15 surviving symbols form a Reed-Solomon codeword. Berlekamp-Massey + Chien + Forney recover the original 5-nibble message even when up to 5 RM blocks decode wrong."
+      "The 15 surviving symbols form a Reed-Solomon codeword. Berlekamp-Massey + Chien + Forney recover the original 4-nibble message even when up to 5 RM blocks decode wrong."
   },
   {
     id: "concat",
     title: "Concatenation",
     detail:
-      "Bit-level noise is absorbed by Reed-Muller; whichever RM blocks still fail show up to Reed-Solomon as isolated symbol errors. The composition is what gives HQC its perfect-correctness design."
+      "Bit-level noise is absorbed by Reed-Muller; whichever RM blocks still fail show up to Reed-Solomon as isolated symbol errors. The composition is what pushes HQC's decoding failure rate below 2^-128 at level 1 — very small, but not zero."
   }
 ];
 
@@ -57,7 +57,7 @@ function gfDiv(a: number, b: number): number {
   return GF_EXP[(GF_LOG[a] - GF_LOG[b] + 15) % 15];
 }
 
-// -------------------- Reed-Solomon (15, 5) over GF(16) --------------------
+// -------------------- Reed-Solomon (15, 4) over GF(16) --------------------
 
 export const RS_N = 15;
 export const RS_K = 4;

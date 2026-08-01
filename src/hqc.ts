@@ -53,7 +53,6 @@ export interface EncapTrace {
   r1: Uint32Array;
   r2: Uint32Array;
   e: Uint32Array;
-  epsilon: Uint32Array;
   hr2: Uint8Array;
   sr2: Uint8Array;
   uBits: Uint8Array;
@@ -124,7 +123,7 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
 };
 
 // Hand-picked illustrative parameters: large enough that QC structure is real, small enough
-// that the noise from x*r2 - y*r1 - y*e + epsilon stays inside the concatenated code's error
+// that the noise from x*r2 - y*r1 + e stays inside the concatenated code's error
 // budget on essentially every run (verified empirically by the Verify panel).
 export const ILLUSTRATIVE_PARAMS: Record<HqcLevel, IllustrativeParams> = {
   "hqc-128": { n: 384, w: 3, w_e: 3, w_r: 3, pkBytes: Math.ceil(384 / 8) * 2, ctBytes: Math.ceil(384 / 8) * 2 + 32 },
@@ -273,14 +272,15 @@ export async function encapsulateIllustrative(keyPair: HqcKeyPair): Promise<HqcE
   const r1 = randomSparse(n, w_r);
   const r2 = randomSparse(n, w_r);
   const e = randomSparse(n, w_e);
-  const epsilon = randomSparse(n, w_e);
 
   const r1Dense = sparseToDense(n, r1);
   const hr2 = circulantMultiplyDenseSparse(keyPair.publicKey.h, r2, n);
-  const uBits = xorSparseNoise(xorBits(r1Dense, hr2), e);
+  // HQC.Encrypt: u = r1 + h*r2 carries NO error term; the error e is added to v
+  // only. (HQC specification, Encrypt: u = r1 + h*r2, v = mG + s*r2 + e.)
+  const uBits = xorBits(r1Dense, hr2);
 
   const sr2 = circulantMultiplyDenseSparse(keyPair.publicKey.s, r2, n);
-  const vBits = xorSparseNoise(xorBits(codeword, sr2), epsilon);
+  const vBits = xorSparseNoise(xorBits(codeword, sr2), e);
 
   const u = bitsToBytes(uBits);
   const v = bitsToBytes(vBits);
@@ -298,7 +298,6 @@ export async function encapsulateIllustrative(keyPair: HqcKeyPair): Promise<HqcE
       r1,
       r2,
       e,
-      epsilon,
       hr2,
       sr2,
       uBits,

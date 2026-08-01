@@ -94,7 +94,7 @@ export function renderVerifierResults(target: HTMLElement, final: VerifierFinal)
   target.innerHTML = `
     <p>
       <strong>Clean roundtrip:</strong> ${final.cleanOk}/${final.cleanTotal} (${cleanPct}%) — empirical
-      check of the perfect-correctness claim on the chosen illustrative parameters.
+      check of the decoding failure rate on the chosen illustrative parameters.
     </p>
     <div class="table-wrap">
       <table>
