@@ -112,7 +112,10 @@ export function renderVerifierResults(target: HTMLElement, final: VerifierFinal)
     <p class="small">
       The middle column is what the concatenated code achieves on its own. The right column
       shows how the Fujisaki-Okamoto verification rejects every tampered ciphertext — that is
-      the chosen-ciphertext security guarantee in action.
+      the chosen-ciphertext security guarantee in action. This demo performs that check the
+      Round-4 way, by recomputing the explicit tag <code>d</code>; current HQC instead
+      re-encrypts and compares the whole ciphertext, and substitutes a pseudorandom key on
+      mismatch. Same guarantee, no transmitted tag.
     </p>
   `;
 }

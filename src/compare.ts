@@ -13,20 +13,25 @@ export interface KemRow {
   source: string;
 }
 
+// Mixed provenance, deliberately: every row's `source` says which era its numbers
+// come from. HQC sizes are the current (2025-08-22) specification NIST selected;
+// ML-KEM sizes are FIPS 203. BIKE was not selected, so its Round-4 spec is its last
+// word and is labelled as such. Cycle counts throughout are the published Round-4 /
+// Kyber-site benchmarks — they are performance figures, not scheme parameters.
 export const comparisonRows: KemRow[] = [
   {
     family: "HQC",
     level: "L1",
     variant: "HQC-128",
-    publicKeyBytes: 2249,
-    ciphertextBytes: 4497,
-    sharedSecretBytes: 64,
+    publicKeyBytes: 2241,
+    ciphertextBytes: 4433,
+    sharedSecretBytes: 32,
     keygenKCycles: 87,
     encapKCycles: 204,
     decapKCycles: 362,
     assumption: "QCSD/DSD over quasi-cyclic codes",
     correctness: "DFR < 2^-128 (analysed, non-zero)",
-    source: "HQC Round-4 submission (Table 6, Table 9)"
+    source: "Sizes: HQC specification 2025-08-22, Table 6. Cycles: Round-4 submission, Table 9"
   },
   {
     family: "BIKE",
@@ -54,21 +59,21 @@ export const comparisonRows: KemRow[] = [
     decapKCycles: 35,
     assumption: "Module-LWE",
     correctness: "Deterministic decapsulation in standardized flow",
-    source: "CRYSTALS-Kyber site (Haswell AVX2 cycles)"
+    source: "Sizes: FIPS 203 (ML-KEM). Cycles: CRYSTALS-Kyber site (Haswell AVX2)"
   },
   {
     family: "HQC",
     level: "L3",
     variant: "HQC-192",
-    publicKeyBytes: 4522,
-    ciphertextBytes: 9042,
-    sharedSecretBytes: 64,
+    publicKeyBytes: 4514,
+    ciphertextBytes: 8978,
+    sharedSecretBytes: 32,
     keygenKCycles: 204,
     encapKCycles: 465,
     decapKCycles: 755,
     assumption: "QCSD/DSD over quasi-cyclic codes",
     correctness: "DFR < 2^-192 (analysed, non-zero)",
-    source: "HQC Round-4 submission (Table 6, Table 9)"
+    source: "Sizes: HQC specification 2025-08-22, Table 6. Cycles: Round-4 submission, Table 9"
   },
   {
     family: "BIKE",
@@ -96,21 +101,21 @@ export const comparisonRows: KemRow[] = [
     decapKCycles: 53,
     assumption: "Module-LWE",
     correctness: "Deterministic decapsulation in standardized flow",
-    source: "CRYSTALS-Kyber site (Haswell AVX2 cycles)"
+    source: "Sizes: FIPS 203 (ML-KEM). Cycles: CRYSTALS-Kyber site (Haswell AVX2)"
   },
   {
     family: "HQC",
     level: "L5",
     variant: "HQC-256",
-    publicKeyBytes: 7245,
-    ciphertextBytes: 14485,
-    sharedSecretBytes: 64,
+    publicKeyBytes: 7237,
+    ciphertextBytes: 14421,
+    sharedSecretBytes: 32,
     keygenKCycles: 409,
     encapKCycles: 904,
     decapKCycles: 1505,
     assumption: "QCSD/DSD over quasi-cyclic codes",
     correctness: "DFR < 2^-256 (analysed, non-zero)",
-    source: "HQC Round-4 submission (Table 6, Table 9)"
+    source: "Sizes: HQC specification 2025-08-22, Table 6. Cycles: Round-4 submission, Table 9"
   },
   {
     family: "BIKE",
@@ -138,7 +143,7 @@ export const comparisonRows: KemRow[] = [
     decapKCycles: 79,
     assumption: "Module-LWE",
     correctness: "Deterministic decapsulation in standardized flow",
-    source: "CRYSTALS-Kyber site (Haswell AVX2 cycles)"
+    source: "Sizes: FIPS 203 (ML-KEM). Cycles: CRYSTALS-Kyber site (Haswell AVX2)"
   }
 ];
 

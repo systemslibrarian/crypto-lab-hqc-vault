@@ -86,6 +86,17 @@ export interface AesEnvelope {
   ciphertext: Uint8Array;
 }
 
+// Official sizes from the current HQC specification (version 2025-08-22, the one
+// NIST selected in March 2025), Section 4.2 / Table 6: |seed| = 32 B, |salt| = 16 B,
+// |K| = 32 B.
+//
+// These are SMALLER than the Round-4 submission's figures (pk 2249/4522/7245,
+// ct 4497/9042/14485, ss 64) for two reasons. The seed shrank from 40 to 32 bytes,
+// costing every public key 8 bytes. And the KEM moved to a salted Fujisaki-Okamoto
+// transform with IMPLICIT rejection (SFO^\u22a5_m), which no longer transmits the
+// 64-byte verification tag `d` — so the ciphertext is now just (u, v, salt).
+// See the FO diagram in main.ts for how this demo still teaches the `d` tag as the
+// Round-4 design it was.
 export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
   "hqc-128": {
     id: "hqc-128",
@@ -94,9 +105,9 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
     w: 66,
     w_e: 75,
     w_r: 75,
-    pkBytes: 2249,
-    ctBytes: 4497,
-    ssBytes: 64
+    pkBytes: 2241,
+    ctBytes: 4433,
+    ssBytes: 32
   },
   "hqc-192": {
     id: "hqc-192",
@@ -105,9 +116,9 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
     w: 100,
     w_e: 114,
     w_r: 114,
-    pkBytes: 4522,
-    ctBytes: 9042,
-    ssBytes: 64
+    pkBytes: 4514,
+    ctBytes: 8978,
+    ssBytes: 32
   },
   "hqc-256": {
     id: "hqc-256",
@@ -116,9 +127,9 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
     w: 131,
     w_e: 149,
     w_r: 149,
-    pkBytes: 7245,
-    ctBytes: 14485,
-    ssBytes: 64
+    pkBytes: 7237,
+    ctBytes: 14421,
+    ssBytes: 32
   }
 };
 

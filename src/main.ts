@@ -179,7 +179,7 @@ app.innerHTML = `
     <section class="panel" id="panel-aes" aria-labelledby="panel-aes-title">
       <h2 id="panel-aes-title">5. KEM + DEM: encrypt a message</h2>
       <p>
-        ${withGlossary("A [[KEM]] only derives a shared secret. To encrypt a payload you pair it with a symmetric [[DEM]] — here AES-256-GCM, using the first 32 bytes of HQC's 64-byte shared secret as the key.")}
+        ${withGlossary("A [[KEM]] only derives a shared secret. To encrypt a payload you pair it with a symmetric [[DEM]] — here AES-256-GCM, using HQC's 32-byte shared secret K directly as the key.")}
       </p>
       <form id="aes-form" class="aes-form">
         <label for="message-input">Message to encrypt with AES-256-GCM</label>
@@ -269,7 +269,7 @@ app.innerHTML = `
       </div>
       <div class="table-wrap" aria-label="Three-way KEM comparison table">
         <table>
-          <caption>Published values from HQC and BIKE Round-4 submissions plus Kyber/ML-KEM reference tables</caption>
+          <caption>Published sizes from the current HQC specification (2025-08-22) and FIPS&nbsp;203 for ML-KEM, plus the BIKE Round-4 spec; cycle counts are the published Round-4 / Kyber-site benchmarks. Each row's source column names its provenance.</caption>
           <thead>
             <tr>
               <th>Variant</th><th>PK (B)</th><th>CT (B)</th><th>SS (B)</th>
@@ -413,9 +413,9 @@ function renderSizingTable(level: HqcLevel) {
   const ill = ILLUSTRATIVE_PARAMS[level];
   target.innerHTML = `
     <table>
-      <caption>Spec sizes vs the toy sizes used in this browser</caption>
+      <caption>Sizes from the current HQC specification (2025-08-22, Table 6) vs the toy sizes used in this browser</caption>
       <thead>
-        <tr><th></th><th>Real HQC spec</th><th>Illustrative (this demo)</th></tr>
+        <tr><th></th><th>HQC spec 2025-08-22</th><th>Illustrative (this demo)</th></tr>
       </thead>
       <tbody>
         <tr><td>Quasi-cyclic dimension n</td><td>${spec.n.toLocaleString()}</td><td>${ill.n}</td></tr>
@@ -425,6 +425,7 @@ function renderSizingTable(level: HqcLevel) {
         <tr><td>Public key size</td><td>${spec.pkBytes.toLocaleString()} B</td><td>≈ ${ill.pkBytes} B</td></tr>
         <tr><td>Ciphertext size</td><td>${spec.ctBytes.toLocaleString()} B</td><td>≈ ${ill.ctBytes} B</td></tr>
         <tr><td>Shared secret size</td><td>${spec.ssBytes} B</td><td>32 B (post-SHA-256)</td></tr>
+        <tr><td>Ciphertext parts</td><td>u, v, salt</td><td>u, v, d (Round-4 form)</td></tr>
       </tbody>
     </table>
     <p class="small">
@@ -544,13 +545,20 @@ function renderSteps(enc: HqcEncapsulation, dec: { rmBitErrors: number; rsSymbol
     .join("")}`;
 }
 
-// A tiny wiring diagram of the FO transform: which inputs feed the tag d versus the
-// shared secret K. Seeing that d and K share m,u,v but differ (s vs d) is what makes
-// the "re-derive d and compare byte-for-byte" rejection idea click.
+// A tiny wiring diagram of the FO transform AS THE ROUND-4 HQC SUBMISSION DEFINED IT:
+// which inputs feed the tag d versus the shared secret K. Seeing that d and K share
+// m,u,v but differ (s vs d) is what makes the "re-derive d and compare byte-for-byte"
+// rejection idea click, which is why this demo still teaches it.
+//
+// The current specification (2025-08-22) no longer works this way. It uses a salted
+// FO transform with IMPLICIT rejection (SFO^\u22a5_m): the ciphertext is (u, v, salt) with
+// no d at all, and decapsulation re-encrypts and compares whole ciphertexts, returning
+// a pseudorandom rejection key J(H(ek) || sigma || c) instead of signalling failure.
+// That removal is exactly why the current ciphertexts are 64 bytes smaller.
 function foDiagramHtml(): string {
   return `
     <figure class="fo-diagram" aria-label="Dependency diagram: which inputs feed the FO tag d versus the shared secret K">
-      <figcaption>How <code>d</code> and <code>K</code> are wired</figcaption>
+      <figcaption>How <code>d</code> and <code>K</code> are wired <span class="small">(Round-4 design &mdash; see note)</span></figcaption>
       <div class="fo-wire">
         <div class="fo-inputs" aria-hidden="true">
           <span class="fo-node">m</span><span class="fo-node">u</span><span class="fo-node">v</span>
@@ -567,6 +575,17 @@ function foDiagramHtml(): string {
         the receiver re-derives <code>d</code> from the <em>recovered</em> <code>m</code> and compares it
         byte-for-byte. Tamper with <code>u</code>, <code>v</code>, or <code>d</code> and the recomputed
         <code>d</code> no longer matches — so <code>K</code> can never collide with the honest one.
+      </p>
+      <p class="small fo-note fo-historical">
+        <strong>This is the Round-4 design, changed in the 2025 specification.</strong> It is kept here
+        because an explicit tag you can watch fail is the clearest way to see what an FO transform is
+        <em>for</em>. Current HQC (spec 2025-08-22, the version NIST selected) sends no <code>d</code>:
+        the ciphertext is <code>(u, v, salt)</code>, and decapsulation uses a salted FO transform with
+        <em>implicit</em> rejection — it re-encrypts the recovered <code>m</code> and compares the whole
+        ciphertext, and on mismatch returns a pseudorandom rejection key derived from a secret
+        <code>&sigma;</code> rather than reporting an error. The idea is identical: bind the ciphertext to
+        the key so tampering cannot produce a usable secret. Dropping the 64-byte <code>d</code> is why
+        current ciphertexts are 64 bytes smaller than the Round-4 numbers.
       </p>
     </figure>`;
 }
@@ -608,7 +627,7 @@ function componentBarsHtml(enc: HqcEncapsulation): string {
 
   const dBar = `
     <div class="cb-row">
-      <span class="cb-label"><code>d</code><small>FO tag</small></span>
+      <span class="cb-label"><code>d</code><small>FO tag (Round-4)</small></span>
       <div class="cb-track" role="img" aria-label="d is a fixed 32-byte SHA-256 verification tag; its whole job is a byte-for-byte equality check">
         <div class="cb-seg cb-tag" style="width:100%"><span>32-byte fixed tag</span></div>
       </div>

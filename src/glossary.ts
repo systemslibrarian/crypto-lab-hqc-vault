@@ -23,7 +23,7 @@ export const GLOSSARY: Record<string, GlossTerm> = {
   },
   fo: {
     short: "FO Transform (Fujisaki–Okamoto)",
-    long: "A generic compiler from an IND-CPA encryption scheme to an IND-CCA KEM. The decapsulator re-encapsulates the recovered message and checks the ciphertext byte-for-byte; any mismatch triggers implicit rejection. The helper value d in HQC plays this verification role."
+    long: "A generic compiler from an IND-CPA encryption scheme to an IND-CCA KEM. The decapsulator re-encrypts the recovered message and checks the result against the ciphertext it was given; a mismatch must not yield a usable key. Current HQC (spec 2025-08-22) uses the salted variant with IMPLICIT rejection: on mismatch it returns a pseudorandom key derived from a secret sigma rather than reporting an error, and the ciphertext is just (u, v, salt). The Round-4 submission instead shipped an explicit 64-byte tag d that the receiver recomputed and compared; this demo still implements that older, more visible form, and says so where it shows it."
   },
   cca: {
     short: "IND-CCA (Indistinguishability under Chosen-Ciphertext Attack)",
