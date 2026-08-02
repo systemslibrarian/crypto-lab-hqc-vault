@@ -25,7 +25,9 @@ export async function runVerifier(
   trialsPerCondition: number,
   onProgress: (p: VerifierProgress) => void
 ): Promise<VerifierFinal> {
-  const flipLevels = [0, 2, 4, 6, 8, 10, 12, 16, 20, 25, 30, 40];
+  // Zero flips is already measured by the clean roundtrip above. Every row in
+  // this table must actually mutate the ciphertext before being called tampered.
+  const flipLevels = [1, 2, 4, 6, 8, 10, 12, 16, 20, 25, 30, 40];
   const total = trialsPerCondition + flipLevels.length * trialsPerCondition;
 
   let cleanOk = 0;
@@ -74,13 +76,16 @@ function yieldToBrowser(): Promise<void> {
 
 export function renderVerifierResults(target: HTMLElement, final: VerifierFinal): void {
   const cleanPct = ((final.cleanOk / final.cleanTotal) * 100).toFixed(1);
+  const tamperedTrials = final.bitFlip.reduce((sum, row) => sum + row.trials, 0);
+  const tamperedAccepted = final.bitFlip.reduce((sum, row) => sum + row.foVerified, 0);
+  const tamperedRejected = tamperedTrials - tamperedAccepted;
   const rows = final.bitFlip
     .map((row) => {
       const seedPct = ((row.seedOk / row.trials) * 100).toFixed(1);
       const verifiedPct = ((row.foVerified / row.trials) * 100).toFixed(1);
       const width = Math.round((row.seedOk / row.trials) * 100);
       return `
-        <tr>
+        <tr data-flips="${row.flips}">
           <td>${row.flips}</td>
           <td>
             <div class="verif-bar"><div class="verif-fill" style="width:${width}%"></div></div>
@@ -109,10 +114,11 @@ export function renderVerifierResults(target: HTMLElement, final: VerifierFinal)
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <p class="small">
+    <p class="small" id="fo-verifier-summary">
       The middle column is what the concatenated code achieves on its own. The right column
-      shows how the Fujisaki-Okamoto verification rejects every tampered ciphertext — that is
-      the chosen-ciphertext security guarantee in action. This demo performs that check the
+      records the measured FO result: this run rejected <strong>${tamperedRejected}/${tamperedTrials}</strong>
+      ciphertexts after one or more bits were flipped${tamperedAccepted === 0 ? ", with no accepts" : `; ${tamperedAccepted} were unexpectedly accepted`}.
+      This demo performs that check the
       Round-4 way, by recomputing the explicit tag <code>d</code>; current HQC instead
       re-encrypts and compares the whole ciphertext, and substitutes a pseudorandom key on
       mismatch. Same guarantee, no transmitted tag.

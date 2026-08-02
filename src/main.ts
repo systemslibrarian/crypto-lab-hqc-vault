@@ -772,8 +772,9 @@ flipRun?.addEventListener("click", async () => {
       ~91% at 17, ~62% at 20. Because a random flip in <code>v</code> lands in the codeword region
       only ${CODEWORD_BITS} times in ${nBits}, even the slider's maximum of 40 usually stays inside
       budget at this parameter set — recovery gets less likely, it does not fall off a cliff.
-      What <em>does</em> happen every time is the FO check rejecting, because <em>any</em> change
-      to <code>v</code> changes the expected <code>d</code>.
+      ${flips === 0
+        ? `This is the unchanged clean control, so FO acceptance is expected and measured here as <strong>${dec.verified ? "YES" : "NO"}</strong>. Move the slider above zero to test tampering.`
+        : `This run did change <code>v</code>; the FO check ${dec.verified ? "unexpectedly accepted" : "rejected"} the resulting ciphertext, as reported above.`}
     </p>
   `;
 });
