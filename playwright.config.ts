@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4223;
+const PORT = 4652;
 const BASE = '/crypto-lab-hqc-vault/';
 
 export default defineConfig({
