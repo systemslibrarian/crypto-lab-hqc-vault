@@ -410,10 +410,18 @@ export function flipCiphertextBit(
 export function flipRandomBits(
   ciphertext: HqcCiphertext,
   field: "u" | "v",
-  count: number
+  count: number,
+  limitBits?: number
 ): { ciphertext: HqcCiphertext; positions: number[] } {
   const target = field === "u" ? ciphertext.u : ciphertext.v;
-  const totalBits = target.length * 8;
+  const allBits = target.length * 8;
+  // `limitBits` bounds the sampling window to the first `limitBits` positions of the
+  // field. v is n bits wide but only the first CODEWORD_BITS carry the codeword the
+  // decoder actually reads, so uniform sampling over all of v mostly misses the part
+  // that matters. Passing limitBits = CODEWORD_BITS aims every flip at the codeword
+  // region, which is what makes crossing the correction radius deterministic rather
+  // than a dice roll.
+  const totalBits = limitBits === undefined ? allBits : Math.max(1, Math.min(limitBits, allBits));
   const safeCount = Math.max(0, Math.min(count, totalBits));
   const used = new Set<number>();
   while (used.size < safeCount) {

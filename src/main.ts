@@ -1,4 +1,5 @@
 import "../styles/main.css";
+import { measureErrorBudget, renderBudgetSweep } from "./budget";
 import { buildBarChartRows, buildComparisonRows, buildSourcesList } from "./compare";
 import { CODEWORD_BITS, SEED_BYTES, concatenatedCodeLayers } from "./codes";
 import { GLOSSARY } from "./glossary";
@@ -202,9 +203,37 @@ app.innerHTML = `
       <div class="controls-row">
         <label for="flip-slider">Bits to flip in v: <strong id="flip-count">0</strong></label>
         <input id="flip-slider" type="range" min="0" max="40" value="0" aria-label="Bits to flip in ciphertext v" />
+        <label for="flip-placement">Where the flips land</label>
+        <select id="flip-placement">
+          <option value="anywhere" selected>Anywhere in v (most flips miss the codeword)</option>
+          <option value="codeword">Inside the ${CODEWORD_BITS}-bit codeword region only</option>
+        </select>
         <button id="flip-run" class="btn">Run with these flips</button>
       </div>
+      <p class="small">
+        Left on <em>anywhere</em>, a flip lands in the codeword region only
+        ${CODEWORD_BITS} times in <span id="flip-nbits">n</span>, so even the slider's maximum
+        usually stays inside the error budget and the seed still comes back — the honest
+        result, but a slow way to reach a decode failure. Switch to
+        <em>codeword region only</em> and every flip counts, which lets you cross the
+        correction radius on demand instead of waiting for luck.
+      </p>
       <div id="flip-output" class="output" aria-live="polite">Generate a keypair and run encap first.</div>
+      <div class="controls-row">
+        <label for="budget-trials">Trials per flip count:</label>
+        <select id="budget-trials">
+          <option value="10">10 (fast)</option>
+          <option value="25" selected>25</option>
+          <option value="50">50 (slow)</option>
+        </select>
+        <button id="budget-run" class="btn">Measure this code's error budget</button>
+        <span id="budget-progress" class="small"></span>
+      </div>
+      <div id="budget-output" class="output" aria-live="polite">
+        The error budget below is <strong>not measured yet</strong>. Run the sweep and every
+        number in it will be counted from real decapsulations against the keypair you
+        generated, rather than quoted from an offline run you cannot check.
+      </div>
     </section>
 
     <section class="panel" id="panel-tamper" aria-labelledby="panel-tamper-title">
@@ -438,6 +467,9 @@ function renderSizingTable(level: HqcLevel) {
       code's error budget, letting decap succeed reliably enough to teach with.
     </p>
   `;
+
+  const flipNBits = document.querySelector<HTMLSpanElement>("#flip-nbits");
+  if (flipNBits) flipNBits.textContent = String(ill.n);
 }
 
 // ---------- keygen ----------
@@ -733,6 +765,7 @@ const flipSlider = document.querySelector<HTMLInputElement>("#flip-slider");
 const flipCount = document.querySelector<HTMLSpanElement>("#flip-count");
 const flipRun = document.querySelector<HTMLButtonElement>("#flip-run");
 const flipOutput = document.querySelector<HTMLDivElement>("#flip-output");
+const flipPlacement = document.querySelector<HTMLSelectElement>("#flip-placement");
 
 flipSlider?.addEventListener("input", () => {
   if (flipCount) flipCount.textContent = flipSlider.value;
@@ -744,15 +777,20 @@ flipRun?.addEventListener("click", async () => {
     return;
   }
   const flips = Number(flipSlider.value);
-  const tampered = flipRandomBits(currentEncap.ciphertext, "v", flips);
+  const targeted = flipPlacement?.value === "codeword";
+  const tampered = flipRandomBits(
+    currentEncap.ciphertext,
+    "v",
+    flips,
+    targeted ? CODEWORD_BITS : undefined
+  );
   const dec = await decapsulateIllustrative(currentKeyPair, tampered.ciphertext);
   const seedMatches = fullHex(dec.recoveredSeed) === fullHex(currentEncap.messageSeed);
 
   // How many of those flips actually landed where the decoder can see them. v is n bits
   // wide but only the first CODEWORD_BITS carry the codeword; the rest is masking the
   // decoder never reads. Reporting the raw flip count alone overstates the damage, which
-  // is what the old "roughly 15 flips and the seed turns to nonsense" line got wrong —
-  // the repo's own verifier recovers the seed 79-96% of the time at the slider's maximum.
+  // is what the old "roughly 15 flips and the seed turns to nonsense" line got wrong.
   const nBits = currentEncap.trace.vBits.length;
   const inCodeword = tampered.positions.filter((p) => p < CODEWORD_BITS).length;
 
@@ -767,16 +805,57 @@ flipRun?.addEventListener("click", async () => {
     <p>Original seed = <code class="hex">${fullHex(currentEncap.messageSeed)}</code></p>
     <p>Recovered seed = <code class="hex">${fullHex(dec.recoveredSeed)}</code></p>
     <p class="small">
-      Measured over 2000 trials per point, this code recovers the seed 100% of the time up to
-      <strong>13</strong> flips inside the codeword region, then degrades gradually: ~99% at 15,
-      ~91% at 17, ~62% at 20. Because a random flip in <code>v</code> lands in the codeword region
-      only ${CODEWORD_BITS} times in ${nBits}, even the slider's maximum of 40 usually stays inside
-      budget at this parameter set — recovery gets less likely, it does not fall off a cliff.
+      ${targeted
+        ? `Placement was <strong>codeword region only</strong>, so all ${flips} flips are errors the
+           decoder has to survive — the count in the slider and the count that matters are the same
+           number here. This run's ${inCodeword} in-codeword errors ${seedMatches ? "stayed inside" : "exceeded"}
+           what the code could correct on this ciphertext.`
+        : `Placement was <strong>anywhere in v</strong>, so a flip lands in the codeword region only
+           ${CODEWORD_BITS} times in ${nBits}: this run put ${inCodeword} of ${flips} where the decoder
+           can see them. That is why the slider's maximum usually still recovers. Switch the
+           placement control to aim every flip and the failure becomes reachable on demand.`}
       ${flips === 0
         ? `This is the unchanged clean control, so FO acceptance is expected and measured here as <strong>${dec.verified ? "YES" : "NO"}</strong>. Move the slider above zero to test tampering.`
         : `This run did change <code>v</code>; the FO check ${dec.verified ? "unexpectedly accepted" : "rejected"} the resulting ciphertext, as reported above.`}
     </p>
   `;
+});
+
+// ---------- live error-budget sweep ----------
+//
+// Replaces the paragraph that used to assert an offline "2000 trials per point"
+// table. The curve is now measured against the learner's own keypair.
+
+const budgetRun = document.querySelector<HTMLButtonElement>("#budget-run");
+const budgetTrials = document.querySelector<HTMLSelectElement>("#budget-trials");
+const budgetOutput = document.querySelector<HTMLDivElement>("#budget-output");
+const budgetProgress = document.querySelector<HTMLSpanElement>("#budget-progress");
+
+budgetRun?.addEventListener("click", async () => {
+  if (!budgetOutput) return;
+  if (!currentKeyPair) {
+    budgetOutput.innerHTML =
+      '<p class="error">Generate a keypair first — the sweep measures that key, not a stored table.</p>';
+    return;
+  }
+  const trials = Number(budgetTrials?.value ?? 25);
+  budgetRun.disabled = true;
+  budgetOutput.innerHTML = "<p>Sweeping…</p>";
+  announce("Measuring the concatenated code's error budget.");
+  try {
+    const sweep = await measureErrorBudget(currentKeyPair, trials, (p) => {
+      if (budgetProgress) budgetProgress.textContent = `${p.done} / ${p.total} decapsulations`;
+    });
+    if (budgetProgress) budgetProgress.textContent = "Done.";
+    renderBudgetSweep(budgetOutput, sweep);
+    announce(
+      sweep.lastPerfect < 0
+        ? "Sweep complete: no flip count recovered on every trial."
+        : `Sweep complete: full recovery up to ${sweep.lastPerfect} in-codeword flips.`
+    );
+  } finally {
+    budgetRun.disabled = false;
+  }
 });
 
 // ---------- tamper lab ----------
