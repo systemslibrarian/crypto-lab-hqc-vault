@@ -111,7 +111,7 @@ function resultHtml(): string {
   }
 
   return `
-    <div class="cc-counters" aria-label="Error-correction counters">
+    <div class="cc-counters" role="group" aria-label="Error-correction counters">
       <span class="cc-counter"><strong>${totalRmFixed}</strong> stray bit${totalRmFixed === 1 ? "" : "s"} fixed by Reed-Muller</span>
       <span class="cc-counter"><strong>${failedBlocks.length}</strong> whole block${failedBlocks.length === 1 ? "" : "s"} failed (exceeded RM's 1-bit budget)</span>
       <span class="cc-counter"><strong>${rsFixed}</strong> failed block${rsFixed === 1 ? "" : "s"} repaired by Reed-Solomon (of 5 it can fix)</span>

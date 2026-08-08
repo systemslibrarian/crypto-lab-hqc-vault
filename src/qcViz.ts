@@ -127,7 +127,7 @@ function render(): void {
       </div>
       ${state.showMatrix ? matrixHtml() : ""}
       ${rowHtml(state.h, "h (first row)", { dim: true })}
-      <div class="qc-rotations" aria-label="Selected columns of the circulant">${rotationRows || '<p class="small">No bits set — pick at least one.</p>'}</div>
+      <div class="qc-rotations" role="group" aria-label="Selected columns of the circulant">${rotationRows || '<p class="small">No bits set — pick at least one.</p>'}</div>
       ${rowHtml(accumulated, "h·y", {})}
     </div>
   `;

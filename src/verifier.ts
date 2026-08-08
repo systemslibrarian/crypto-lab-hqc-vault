@@ -101,7 +101,7 @@ export function renderVerifierResults(target: HTMLElement, final: VerifierFinal)
       <strong>Clean roundtrip:</strong> ${final.cleanOk}/${final.cleanTotal} (${cleanPct}%) — empirical
       check of the decoding failure rate on the chosen illustrative parameters.
     </p>
-    <div class="table-wrap">
+    <div class="table-wrap" role="region" tabindex="0" aria-label="Seed recovery after random bit flips">
       <table>
         <caption>Seed recovery after random bit flips in ciphertext v</caption>
         <thead>

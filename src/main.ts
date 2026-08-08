@@ -38,9 +38,9 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing app root");
 
 app.innerHTML = `
-<div class="page" aria-label="HQC Vault interactive demo">
+<div class="page">
   <header class="hero" role="group" aria-label="Demo header" id="top">
-    <span class="chip category" aria-label="Category chip">Post-Quantum KEM</span>
+    <span class="chip category">Post-Quantum KEM</span>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode"></button>
     <div class="cl-hero">
       <div class="cl-hero-main">
@@ -53,7 +53,7 @@ app.innerHTML = `
         <p class="cl-hero-why-text">A quantum computer would break today's RSA and ECC key exchange. NIST is standardizing HQC as a code-based backup to lattice schemes, so a single mathematical break can't compromise every deployed handshake at once.</p>
       </aside>
     </div>
-    <div class="chip-row" aria-label="Primitive chips">
+    <div class="chip-row" role="group" aria-label="Primitive chips">
       <span class="chip">HQC</span>
       <span class="chip">Quasi-Cyclic</span>
       <span class="chip">Reed-Muller</span>
@@ -160,7 +160,7 @@ app.innerHTML = `
       <p>
         ${withGlossary("Private key: two sparse vectors (x, y) of low Hamming weight. Public key: (h, s) with h uniformly random and s = x + h·y over [[GF(2)]] using quasi-cyclic arithmetic. The hard part — recovering (x, y) from s — is the [[QCSD]] assumption.")}
       </p>
-      <div id="sizing-table" class="sizing-table" aria-live="polite"></div>
+      <div id="sizing-table" class="sizing-table" role="region" tabindex="0" aria-live="polite" aria-label="Key and ciphertext sizes"></div>
       <div id="keygen-output" class="output" aria-live="polite"></div>
     </section>
 
@@ -297,7 +297,7 @@ app.innerHTML = `
           <option value="L5">Level 5 / 256-bit</option>
         </select>
       </div>
-      <div class="table-wrap" aria-label="Three-way KEM comparison table">
+      <div class="table-wrap" role="region" tabindex="0" aria-label="Three-way KEM comparison table">
         <table>
           <caption>Published sizes from the current HQC specification (2025-08-22) and FIPS&nbsp;203 for ML-KEM, plus the BIKE Round-4 spec; cycle counts are the published Round-4 / Kyber-site benchmarks. Each row's source column names its provenance.</caption>
           <thead>
@@ -330,7 +330,7 @@ app.innerHTML = `
         NIST status: ML-KEM is the deployed default; HQC was selected in 2025 for ongoing
         standardization work (NIST IR 8545 context), reinforcing the code-based diversity track.
       </p>
-      <div class="links" aria-label="Related demos">
+      <div class="links" role="group" aria-label="Related demos">
         <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-kyber-vault/" target="_blank" rel="noreferrer">crypto-lab-kyber-vault</a>
         <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-bike-vault/" target="_blank" rel="noreferrer">crypto-lab-bike-vault</a>
         <a class="badge" href="https://systemslibrarian.github.io/crypto-lab-mceliece-gate/" target="_blank" rel="noreferrer">crypto-lab-mceliece-gate</a>
@@ -669,7 +669,7 @@ function componentBarsHtml(enc: HqcEncapsulation): string {
       </div>
     </div>`;
 
-  return `<div class="cb-bars" aria-label="Ciphertext component shapes">${vBar}${uBar}${dBar}</div>`;
+  return `<div class="cb-bars" role="group" aria-label="Ciphertext component shapes">${vBar}${uBar}${dBar}</div>`;
 }
 
 // ---------- encap / decap ----------

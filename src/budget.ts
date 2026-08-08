@@ -128,7 +128,7 @@ export function renderBudgetSweep(target: HTMLElement, sweep: BudgetSweep): void
       : `recovery reached <strong>zero</strong> for the first time at <strong>${sweep.firstTotalFailure}</strong> in-codeword flips`;
 
   target.innerHTML = `
-    <div class="table-wrap">
+    <div class="table-wrap" role="region" tabindex="0" aria-label="Decoding budget sweep results">
       <table>
         <caption>
           Measured just now: ${sweep.decapsulations} real decapsulations against the keypair

@@ -164,7 +164,14 @@ h1, h2, h3 { line-height: 1.2; }
   font-weight: 600;
 }
 
-.panels { display: grid; gap: 0.9rem; margin-top: 0.9rem; }
+/* `minmax(0, 1fr)`, not the default `auto` track: an auto track takes its
+   minimum from the widest item's min-content, and #panel-compare's table is
+   `min-width: 980px`. That one table was sizing the whole column, so every
+   panel rendered 1016px wide in a 380px viewport and the document scrolled
+   sideways (WCAG 1.4.10) — while the table's own `overflow-x: auto` wrapper
+   never got the chance to scroll, because nothing constrained it. Flooring the
+   track at 0 puts the scrolling back inside .table-wrap where it belongs. */
+.panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.9rem; margin-top: 0.9rem; }
 .panel { padding: 1rem; }
 
 .chip-row, .callouts, .links, .controls-row {
@@ -201,6 +208,12 @@ input[type="range"] { min-height: 44px; }
 
 select {
   appearance: none;
+  /* A select sizes to its longest option unless told otherwise, and
+     "Anywhere in v (most flips miss the codeword)" is 366px — wider than a
+     380px viewport once the row's padding is counted, which scrolled the whole
+     document sideways. min-width: 0 lets it shrink as a flex item. */
+  max-width: 100%;
+  min-width: 0;
   padding-right: 1.8rem;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%238b949e' stroke-width='2' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
