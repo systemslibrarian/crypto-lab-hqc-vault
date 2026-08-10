@@ -136,3 +136,33 @@ test('HQC equation and DFR disclosures remain corrected', async ({ page }) => {
     await expect(hqcRows.nth(i)).toContainText('non-zero');
   }
 });
+
+/* ── "Hide step-by-step" must actually hide it ────────────────────────────
+ * `#kem-steps` is governed by `stepContainer.hidden = !stepMode`, and the same
+ * render pass fills it with the FO-transform walkthrough. But `[hidden]` is a
+ * UA rule using an attribute selector — specificity (0,1,0), exactly a class's
+ * — so `.kem-steps { display: grid }` outranked it and the attribute did
+ * nothing. Toggling step mode off left the steps on screen.
+ *
+ * It reads as empty at first paint, which is why a first-paint check could not
+ * see it: the container has not been filled yet at that point.
+ */
+test('toggling step-by-step off actually hides the steps', async ({ page }) => {
+  await page.goto('.');
+
+  const steps = page.locator('#kem-steps');
+  const toggle = page.locator('#step-toggle');
+
+  // The container is empty until a run fills it, so drive a real KEM first —
+  // otherwise the test passes on an empty box and proves nothing.
+  await page.locator('#keygen-btn').click();
+  await page.locator('#encap-btn').click();
+  await toggle.click();
+  await expect(steps).toBeVisible();
+  await expect(steps, 'step mode on should render the walkthrough').not.toBeEmpty();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  // The attribute is set; the question is whether the cascade honours it.
+  await expect(steps, 'hidden was set but the steps are still displayed').toBeHidden();
+});

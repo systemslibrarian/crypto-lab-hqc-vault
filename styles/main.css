@@ -40,6 +40,17 @@
 
 * { box-sizing: border-box; }
 
+/* The `hidden` attribute must actually hide.
+   The UA rule is `[hidden] { display: none }` — an attribute selector, whose
+   specificity (0,1,0) is exactly a class's, so `.kem-steps { display: grid }`
+   outranks it. `#kem-steps` is written with `stepContainer.hidden = !stepMode`
+   and filled with the FO-transform walkthrough by the same render pass, so
+   turning step mode off left the steps on screen. It reads as empty at first
+   paint only because it has not been filled yet.
+   `!important` is load-bearing: without it the next `display` on a hideable
+   class silently wins again. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
