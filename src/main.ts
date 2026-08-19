@@ -41,7 +41,6 @@ app.innerHTML = `
 <div class="page">
   <header class="hero" role="group" aria-label="Demo header" id="top">
     <span class="chip category">Post-Quantum KEM</span>
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode"></button>
     <div class="cl-hero">
       <div class="cl-hero-main">
         <h1 class="cl-hero-title">HQC Vault</h1>
@@ -384,25 +383,6 @@ app.innerHTML = `
 let currentKeyPair: HqcKeyPair | null = null;
 let currentEncap: HqcEncapsulation | null = null;
 let stepMode = false;
-
-// ---------- theme ----------
-
-(function setupThemeToggle() {
-  const root = document.documentElement;
-  const btn = document.querySelector<HTMLButtonElement>("#theme-toggle");
-  if (!btn) return;
-  const apply = (t: "dark" | "light") => {
-    root.dataset.theme = t;
-    btn.textContent = t === "dark" ? "🌙" : "☀️";
-    btn.setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
-  };
-  apply(root.dataset.theme === "light" ? "light" : "dark");
-  btn.addEventListener("click", () => {
-    const next = root.dataset.theme === "dark" ? "light" : "dark";
-    apply(next);
-    localStorage.setItem("theme", next);
-  });
-})();
 
 // ---------- TOC, glossary, copy ----------
 

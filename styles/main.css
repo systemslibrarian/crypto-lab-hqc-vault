@@ -96,28 +96,6 @@ body { min-height: 100vh; }
   padding-right: 4.5rem;
 }
 
-.theme-toggle {
-  position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-  width: 2.6rem;
-  height: 2.6rem;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background-color: var(--panel);
-  color: var(--text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font: inherit;
-  line-height: 1;
-  cursor: pointer;
-}
-.theme-toggle:hover {
-  background-color: color-mix(in srgb, var(--accent) 14%, var(--panel));
-  color: var(--accent);
-}
-
 h1, h2, h3 { line-height: 1.2; }
 .subtitle { max-width: 72ch; }
 
