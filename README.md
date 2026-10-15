@@ -27,6 +27,8 @@ Two hands-on visualizers make the mechanism concrete rather than hex-only. The q
 - Treating an educational helper path as if it were the specified scheme. This repository reduces dimensions in-browser and uses illustrative helper logic, so its correctness and security properties are not a substitute for a full HQC implementation.
 - Assuming HQC is the default deployment choice today. The project itself positions HQC as a diversity-track alternative beside ML-KEM, so using it where policy or interoperability expects the current default KEM can create operational problems.
 
+- **Physical fault injection:** [Paiva et al., ePrint 2026/2492 (15 October 2026)](https://eprint.iacr.org/2026/2492) report HQC/BIKE key recovery using valid ciphertexts and faults in decapsulation outside the Fujisaki–Okamoto verification step, with laser fault-injection experiments on an STM32H7 microcontroller. This is a demonstrated hardware attack under physical fault-injection conditions, not a mathematical break of the code-based assumptions or a remote browser attack. Protecting the FO check alone does not cover the full fault surface; constant-time execution addresses timing leakage, not injected faults. This browser demo does not reproduce the hardware attack or establish fault resistance.
+
 ## Real-World Usage
 
 - NIST post-quantum backup KEM standardization track. HQC was selected by NIST in 2025 for standardization as a code-based alternative, so its most important current real-world use is in standards work rather than broad default deployment.

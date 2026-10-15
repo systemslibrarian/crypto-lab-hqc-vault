@@ -265,6 +265,17 @@ app.innerHTML = `
       <div id="sc-output" class="output" aria-live="polite"></div>
     </section>
 
+      <p class="note" id="fault-injection-scope">
+        <strong>Physical faults are a separate attack model.</strong>
+        <a href="https://eprint.iacr.org/2026/2492">Paiva et al., ePrint 2026/2492 (15 October 2026)</a>
+        report HQC/BIKE key recovery using valid ciphertexts and faults elsewhere in decapsulation,
+        beyond the Fujisaki–Okamoto verification step, with laser experiments on an STM32H7.
+        Protecting that check alone does not cover the whole fault surface; constant-time code does
+        not itself prevent injected faults. This hardware result requires physical fault injection,
+        not just changing a ciphertext. It is not a mathematical break of the code-based assumptions.
+        This browser demo does not reproduce that attack or establish hardware fault resistance.
+      </p>
+
     <section class="panel" id="panel-verify" aria-labelledby="panel-verify-title">
       <h2 id="panel-verify-title">9. Empirical correctness verifier</h2>
       <p>
