@@ -26,17 +26,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Unit suite ahead of the build, as the note below required when this
+      # lab had none. 10 tests pinning NIST CAVP SHA-256 and AES-256-GCM
+      # vectors through this lab's own primitives; `vitest run`, scoped by
+      # vitest.config.ts to src/ so it does not collect the Playwright specs.
+      - run: npm test
       - run: npm run build
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
-      # This lab has NO unit suite — no vitest, no node test scripts. Playwright
-      # is its whole automated verification, and `test:a11y` is bare
+      # Playwright is this lab's BROWSER verification, and `test:a11y` is bare
       # `playwright test`, so it runs claims.spec.ts (clean roundtrips, the
       # targeted decode failure, the live error-budget sweep, the verifier's FO
       # accounting, the side-channel rows) alongside a11y.spec.ts. The old step
       # name advertised only the axe half, which is what makes a repo look like
-      # it deploys on an a11y check alone. It does not — but if a unit suite is
-      # ever added, it must be wired in here ahead of the build.
+      # it deploys on an a11y check alone. It does not.
+      #
+      # This note used to open "this lab has NO unit suite" and close by
+      # requiring one be wired in ahead of the build. One was, in the same
+      # commit that rewrote this paragraph — a comment stating an absence is
+      # the kind that goes false silently, and the `npm test` step above is
+      # what it was asking for.
       - name: Browser claims and accessibility gate
         run: npm run test:a11y
       - uses: actions/upload-pages-artifact@v5

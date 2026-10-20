@@ -216,7 +216,10 @@ export function bytesToBits(bytes: Uint8Array, n: number): Uint8Array {
   return out;
 }
 
-async function sha256(parts: Uint8Array[]): Promise<Uint8Array> {
+/* Exported so a published vector can be asserted THROUGH this function rather
+ * than against crypto.subtle directly: an assertion on subtle tests the
+ * runtime and not this lab's shared-secret derivation. */
+export async function sha256(parts: Uint8Array[]): Promise<Uint8Array> {
   const total = parts.reduce((acc, p) => acc + p.length, 0);
   const joined = new Uint8Array(total);
   let offset = 0;
