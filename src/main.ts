@@ -263,6 +263,18 @@ app.innerHTML = `
         <button id="sc-run" class="btn">Measure timings</button>
       </div>
       <div id="sc-output" class="output" aria-live="polite"></div>
+      <p class="note" id="masked-hardware-scope">
+        <strong>A negative leakage test is not a security guarantee.</strong>
+        <a href="https://eprint.iacr.org/2026/2509">Buschkowski, Höher and Güneysu,
+        Sparse Secrets, Dense Problems (17 October 2026; preprint)</a>
+        report a profiled horizontal side-channel attack on a masked HQC FPGA multiplier:
+        200 traces locate secret nonzero positions within ±8 places, although test-vector
+        leakage assessment (TVLA) detected no leakage after 10 million traces.
+        This is approximate position recovery, not a demonstrated complete key recovery or
+        a mathematical break of HQC. The authors also add hiding countermeasures.
+        Masking guarantees depend on the model; this result requires profiled hardware
+        measurements. This browser timing toy neither reproduces it nor establishes hardware resistance.
+      </p>
     </section>
 
       <p class="note" id="fault-injection-scope">
