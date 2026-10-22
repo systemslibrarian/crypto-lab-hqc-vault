@@ -4,7 +4,7 @@
 // Optional matrix overlay reveals the punchline: "XOR of rotations" IS the matrix-times-vector
 // product M·y, where M is the full circulant of h. Selecting bit j of y selects column j of M;
 // the product is the XOR of the selected columns. Storing only h's first row (instead of the whole
-// n×n matrix M) is exactly why HQC keys are kilobytes, not megabytes.
+// n×n matrix M) helps keep HQC public keys in kilobytes, not megabytes.
 
 const VIZ_N = 16;
 
@@ -95,7 +95,8 @@ function matrixHtml(): string {
       Each highlighted column above is one rotation of <code>h</code> — and the product
       <code>h·y</code> is just the XOR of the highlighted columns. <strong>This is a matrix multiply
       M·y in disguise.</strong> Storing only <code>h</code>'s first row instead of the whole
-      ${n}×${n} matrix <code>M</code> is why HQC keys are kilobytes, not megabytes.
+      ${n}×${n} matrix <code>M</code> helps keep HQC public keys in kilobytes instead of
+      storing a much larger matrix. The 2026 decapsulation key defaults to a 32-byte seed.
     </p>
   `;
 }

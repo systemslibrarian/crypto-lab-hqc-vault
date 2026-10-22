@@ -26,9 +26,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Unit suite ahead of the build, as the note below required when this
-      # lab had none. 10 tests pinning NIST CAVP SHA-256 and AES-256-GCM
-      # vectors through this lab's own primitives; `vitest run`, scoped by
+      # Unit suite ahead of the build. It pins NIST CAVP SHA-256 and AES-256-GCM
+      # vectors and HQC team parameters through this lab's own code; `vitest run`, scoped by
       # vitest.config.ts to src/ so it does not collect the Playwright specs.
       - run: npm test
       - run: npm run build

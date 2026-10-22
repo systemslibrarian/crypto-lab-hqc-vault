@@ -125,7 +125,7 @@ app.innerHTML = `
 
       <h3>Quasi-cyclic arithmetic — click to play</h3>
       <p class="small">
-        ${withGlossary("A [[circulant]] is fully described by its first row; multiplying it against a sparse vector reduces to XOR-ing a few rotations. That is the whole reason HQC keys fit in kilobytes instead of megabytes.")}
+        ${withGlossary("A [[circulant]] is fully described by its first row; multiplying it against a sparse vector reduces to XOR-ing a few rotations. That helps HQC public keys fit in kilobytes instead of storing a much larger matrix.")}
       </p>
       <div id="qc-viz"></div>
     </section>
