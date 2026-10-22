@@ -30,10 +30,35 @@ import {
   bytesToBits,
   encryptWithSharedSecret,
   decryptWithSharedSecret,
+  HQC_PARAMS,
 } from './hqc';
+import { comparisonRows } from './compare';
 
 const hex = (h: string) => Uint8Array.from((h.match(/../g) ?? []).map((b) => parseInt(b, 16)));
 const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+
+// HQC team specification dated 12 October 2026, Tables 8-9:
+// https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf
+// Keep the visible parameter chart tied to this version, including its new
+// compressed decapsulation-key default and HQC-1 DFR label in compare.ts.
+describe('published HQC-1/3/5 parameters used by the sizing chart', () => {
+  it.each([
+    ['hqc-128', 17669, 67, 76, 2241, 32, 4433],
+    ['hqc-192', 35851, 101, 114, 4514, 32, 8978],
+    ['hqc-256', 57637, 132, 150, 7237, 32, 14421],
+  ] as const)('%s matches Tables 8-9', (name, n, w, wr, pk, dk, ct) => {
+    const p = HQC_PARAMS[name];
+    expect([p.n, p.w, p.w_r, p.w_e, p.pkBytes, p.dkBytes, p.ctBytes])
+      .toEqual([n, w, wr, wr, pk, dk, ct]);
+  });
+
+  it('labels the revised HQC-1 DFR bound and benchmark provenance', () => {
+    const row = comparisonRows.find((candidate) => candidate.variant === 'HQC-128');
+    expect(row?.correctness).toContain('2^-127');
+    expect(row?.source).toContain('2026-10-12');
+    expect(row?.source).toContain('historical Round-4');
+  });
+});
 
 const CAVP_GCM = {
   key: '31bdadd96698c204aa9ce1448ea94ae1fb4a9a0b3c9d773b51bb1822666b8f22',

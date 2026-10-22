@@ -45,7 +45,7 @@ app.innerHTML = `
       <div class="cl-hero-main">
         <h1 class="cl-hero-title">HQC Vault</h1>
         <p class="cl-hero-sub">Code-Based PQ KEM · Quasi-Cyclic Syndrome Decoding · FO Transform</p>
-        <p class="cl-hero-desc">Build an HQC keypair, then encapsulate and decapsulate through the full quasi-cyclic KEM — Reed-Muller + Reed-Solomon decoding and the FO re-encryption check — and wrap a message end-to-end with the derived AES-256-GCM DEM.</p>
+        <p class="cl-hero-desc">Build an illustrative HQC-style keypair, then encapsulate and decapsulate through a small quasi-cyclic teaching model — Reed-Muller + Reed-Solomon decoding and an older FO check — and wrap a message with the derived AES-256-GCM key.</p>
       </div>
       <aside class="cl-hero-why" aria-label="Why it matters">
         <span class="cl-hero-why-label">WHY IT MATTERS</span>
@@ -157,7 +157,7 @@ app.innerHTML = `
         <span class="chip status">NIST Round 4 selection (2025) — diversity track</span>
       </div>
       <p>
-        ${withGlossary("Private key: two sparse vectors (x, y) of low Hamming weight. Public key: (h, s) with h uniformly random and s = x + h·y over [[GF(2)]] using quasi-cyclic arithmetic. The hard part — recovering (x, y) from s — is the [[QCSD]] assumption.")}
+        ${withGlossary("In this teaching model, the private key is two sparse vectors (x, y) of low Hamming weight. The published 2026 HQC decapsulation key instead defaults to a 32-byte seed. The public-key relation is (h, s) with h uniformly random and s = x + h·y over [[GF(2)]] using quasi-cyclic arithmetic. Recovering the sparse secrets from public data relates to the [[QCSD]] assumption.")}
       </p>
       <div id="sizing-table" class="sizing-table" role="region" tabindex="0" aria-live="polite" aria-label="Key and ciphertext sizes"></div>
       <div id="keygen-output" class="output" aria-live="polite"></div>
@@ -321,7 +321,7 @@ app.innerHTML = `
       </div>
       <div class="table-wrap" role="region" tabindex="0" aria-label="Three-way KEM comparison table">
         <table>
-          <caption>Published sizes from the current HQC specification (2025-08-22) and FIPS&nbsp;203 for ML-KEM, plus the BIKE Round-4 spec; cycle counts are the published Round-4 / Kyber-site benchmarks. Each row's source column names its provenance.</caption>
+          <caption>Published sizes from the <a href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf" target="_blank" rel="noopener noreferrer">HQC specification (12 October 2026)</a> and FIPS&nbsp;203 for ML-KEM, plus the BIKE Round-4 spec. Cycle counts are historical Round-4 / Kyber-site figures from different platforms, not a common-platform speed comparison; the source list names their provenance.</caption>
           <thead>
             <tr>
               <th>Variant</th><th>PK (B)</th><th>CT (B)</th><th>SS (B)</th>
@@ -446,12 +446,11 @@ function renderSizingTable(level: HqcLevel) {
   const ill = ILLUSTRATIVE_PARAMS[level];
   target.innerHTML = `
     <table>
-      <caption>Sizes from the current HQC specification (2025-08-22, Tables 5 and 6) vs the toy sizes
-        used in this browser. The 2025 specification renames these instances <strong>HQC-1 / HQC-3 /
-        HQC-5</strong>; this demo keeps the older <code>hqc-128/192/256</code> labels because that is
-        what liboqs and PQClean still expose. Same parameter sets either way.</caption>
+      <caption>Parameters from the <a href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf" target="_blank" rel="noopener noreferrer">HQC team specification (12 October 2026, Tables 8–9)</a> vs the toy sizes
+        used in this browser. The specification calls these instances <strong>HQC-1 / HQC-3 /
+        HQC-5</strong>; this demo retains its <code>hqc-128/192/256</code> labels for continuity.</caption>
       <thead>
-        <tr><th></th><th>HQC spec 2025-08-22</th><th>Illustrative (this demo)</th></tr>
+        <tr><th></th><th>HQC spec 2026-10-12</th><th>Illustrative (this demo)</th></tr>
       </thead>
       <tbody>
         <tr><td>Quasi-cyclic dimension n</td><td>${spec.n.toLocaleString()}</td><td>${ill.n}</td></tr>
@@ -459,6 +458,7 @@ function renderSizingTable(level: HqcLevel) {
         <tr><td>Encap noise weight w_e</td><td>${spec.w_e}</td><td>${ill.w_e}</td></tr>
         <tr><td>Encap noise weight w_r</td><td>${spec.w_r}</td><td>${ill.w_r}</td></tr>
         <tr><td>Public key size</td><td>${spec.pkBytes.toLocaleString()} B</td><td>≈ ${ill.pkBytes} B</td></tr>
+        <tr><td>Decapsulation key size</td><td>${spec.dkBytes} B (default compressed seed)</td><td>Two toy sparse vectors, not a serialized HQC key</td></tr>
         <tr><td>Ciphertext size</td><td>${spec.ctBytes.toLocaleString()} B</td><td>≈ ${ill.ctBytes} B</td></tr>
         <tr><td>Shared secret size</td><td>${spec.ssBytes} B</td><td>32 B (post-SHA-256)</td></tr>
         <tr><td>Ciphertext parts</td><td>u, v, salt</td><td>u, v, d (Round-4 form)</td></tr>
@@ -467,7 +467,9 @@ function renderSizingTable(level: HqcLevel) {
     <p class="small">
       The illustrative dimension is roughly <strong>${(ill.n / spec.n * 100).toFixed(2)}%</strong> of the spec.
       Weights are kept tiny so the noise term inside v − y·u always lands inside the concatenated
-      code's error budget, letting decap succeed reliably enough to teach with.
+      code's error budget, letting decap succeed reliably enough to teach with. The 2026 specification
+      changed the secret-key default to a compressed 32-byte seed and adjusted sparse weights; this
+      browser does not implement its new key format or revised arithmetic.
     </p>
   `;
 
@@ -589,7 +591,7 @@ function renderSteps(enc: HqcEncapsulation, dec: { rmBitErrors: number; rsSymbol
 // m,u,v but differ (s vs d) is what makes the "re-derive d and compare byte-for-byte"
 // rejection idea click, which is why this demo still teaches it.
 //
-// The current specification (2025-08-22) no longer works this way. It uses a salted
+// The current specification (2026-10-12) no longer works this way. It uses a salted
 // FO transform with IMPLICIT rejection (SFO^\u22a5_m): the ciphertext is (u, v, salt) with
 // no d at all, and decapsulation re-encrypts and compares whole ciphertexts, returning
 // a pseudorandom rejection key J(H(ek) || sigma || c) instead of signalling failure.
@@ -618,7 +620,7 @@ function foDiagramHtml(): string {
       <p class="small fo-note fo-historical">
         <strong>This is the Round-4 design, changed in the 2025 specification.</strong> It is kept here
         because an explicit tag you can watch fail is the clearest way to see what an FO transform is
-        <em>for</em>. Current HQC (spec 2025-08-22, the version NIST selected) sends no <code>d</code>:
+        <em>for</em>. The <a href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf" target="_blank" rel="noopener noreferrer">12 October 2026 HQC specification</a> still sends no <code>d</code>:
         the ciphertext is <code>(u, v, salt)</code>, and decapsulation uses a salted FO transform with
         <em>implicit</em> rejection — it re-encrypts the recovered <code>m</code> and compares the whole
         ciphertext, and on mismatch returns a pseudorandom rejection key derived from a secret

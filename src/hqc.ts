@@ -15,6 +15,7 @@ export interface HqcParams {
   w_e: number;
   w_r: number;
   pkBytes: number;
+  dkBytes: number;
   ctBytes: number;
   ssBytes: number;
 }
@@ -86,9 +87,9 @@ export interface AesEnvelope {
   ciphertext: Uint8Array;
 }
 
-// Official sizes from the current HQC specification (version 2025-08-22, the one
-// NIST selected in March 2025), Section 4.2 / Table 6: |seed| = 32 B, |salt| = 16 B,
-// |K| = 32 B.
+// Official parameters and sizes from the HQC team specification dated 2026-10-12,
+// Sections 4.1-4.2, Tables 8-9. The default decapsulation key is now a compressed
+// 32-byte seed; this demo's private sparse vectors are illustrative, not that format.
 //
 // These are SMALLER than the Round-4 submission's figures (pk 2249/4522/7245,
 // ct 4497/9042/14485, ss 64) for two reasons. The seed shrank from 40 to 32 bytes,
@@ -102,10 +103,11 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
     id: "hqc-128",
     label: "HQC-128 (NIST Level 1)",
     n: 17669,
-    w: 66,
-    w_e: 75,
-    w_r: 75,
+    w: 67,
+    w_e: 76,
+    w_r: 76,
     pkBytes: 2241,
+    dkBytes: 32,
     ctBytes: 4433,
     ssBytes: 32
   },
@@ -113,10 +115,11 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
     id: "hqc-192",
     label: "HQC-192 (NIST Level 3)",
     n: 35851,
-    w: 100,
+    w: 101,
     w_e: 114,
     w_r: 114,
     pkBytes: 4514,
+    dkBytes: 32,
     ctBytes: 8978,
     ssBytes: 32
   },
@@ -124,10 +127,11 @@ export const HQC_PARAMS: Record<HqcLevel, HqcParams> = {
     id: "hqc-256",
     label: "HQC-256 (NIST Level 5)",
     n: 57637,
-    w: 131,
-    w_e: 149,
-    w_r: 149,
+    w: 132,
+    w_e: 150,
+    w_r: 150,
     pkBytes: 7237,
+    dkBytes: 32,
     ctBytes: 14421,
     ssBytes: 32
   }

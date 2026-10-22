@@ -14,7 +14,7 @@ export interface KemRow {
 }
 
 // Mixed provenance, deliberately: every row's `source` says which era its numbers
-// come from. HQC sizes are the current (2025-08-22) specification NIST selected;
+// come from. HQC sizes are from the HQC team's 2026-10-12 specification;
 // ML-KEM sizes are FIPS 203. BIKE was not selected, so its Round-4 spec is its last
 // word and is labelled as such. Cycle counts throughout are the published Round-4 /
 // Kyber-site benchmarks — they are performance figures, not scheme parameters.
@@ -30,8 +30,8 @@ export const comparisonRows: KemRow[] = [
     encapKCycles: 204,
     decapKCycles: 362,
     assumption: "QCSD/DSD over quasi-cyclic codes",
-    correctness: "DFR < 2^-128 (analysed, non-zero)",
-    source: "Sizes: HQC specification 2025-08-22, Table 6. Cycles: Round-4 submission, Table 9"
+    correctness: "DFR < 2^-127 (analysed, non-zero)",
+    source: "Sizes/DFR: HQC specification 2026-10-12, Tables 8-9. Cycles: historical Round-4 submission, Table 9"
   },
   {
     family: "BIKE",
@@ -73,7 +73,7 @@ export const comparisonRows: KemRow[] = [
     decapKCycles: 755,
     assumption: "QCSD/DSD over quasi-cyclic codes",
     correctness: "DFR < 2^-192 (analysed, non-zero)",
-    source: "Sizes: HQC specification 2025-08-22, Table 6. Cycles: Round-4 submission, Table 9"
+    source: "Sizes/DFR: HQC specification 2026-10-12, Tables 8-9. Cycles: historical Round-4 submission, Table 9"
   },
   {
     family: "BIKE",
@@ -115,7 +115,7 @@ export const comparisonRows: KemRow[] = [
     decapKCycles: 1505,
     assumption: "QCSD/DSD over quasi-cyclic codes",
     correctness: "DFR < 2^-256 (analysed, non-zero)",
-    source: "Sizes: HQC specification 2025-08-22, Table 6. Cycles: Round-4 submission, Table 9"
+    source: "Sizes/DFR: HQC specification 2026-10-12, Tables 8-9. Cycles: historical Round-4 submission, Table 9"
   },
   {
     family: "BIKE",

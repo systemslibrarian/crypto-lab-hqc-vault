@@ -1,5 +1,24 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('published HQC values follow the 12 October 2026 specification', async ({ page }) => {
+  await page.goto('.');
+  const table = page.locator('#sizing-table');
+  await expect(table).toContainText('HQC spec 2026-10-12');
+  await expect(table).toContainText('32 B (default compressed seed)');
+  await expect(table.locator('tr').filter({ hasText: 'Sparse weight w' }).locator('td').nth(1)).toHaveText('67');
+  await expect(table.locator('tr').filter({ hasText: 'Encap noise weight w_e' }).locator('td').nth(1)).toHaveText('76');
+  await expect(page.locator('#compare-rows')).toContainText('DFR < 2^-127');
+  await expect(table.locator('a[href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf"]')).toHaveCount(1);
+
+  await page.locator('#hqc-level').selectOption('hqc-192');
+  await expect(table.locator('tr').filter({ hasText: 'Sparse weight w' }).locator('td').nth(1)).toHaveText('101');
+  await expect(table.locator('tr').filter({ hasText: 'Encap noise weight w_r' }).locator('td').nth(1)).toHaveText('114');
+  await page.locator('#hqc-level').selectOption('hqc-256');
+  await expect(table.locator('tr').filter({ hasText: 'Sparse weight w' }).locator('td').nth(1)).toHaveText('132');
+  await expect(table.locator('tr').filter({ hasText: 'Encap noise weight w_e' }).locator('td').nth(1)).toHaveText('150');
+  await expect(table).toContainText('32 B (default compressed seed)');
+});
+
 async function prepareKem(page: Page): Promise<void> {
   await page.goto('.');
   await page.locator('#keygen-btn').click();
