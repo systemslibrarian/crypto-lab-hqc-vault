@@ -111,7 +111,7 @@ function render(): void {
 
   const sparseHtml = Array.from({ length: VIZ_N }, (_, i) => {
     const set = state.sparse.has(i);
-    return `<button type="button" class="qc-bit${set ? " on" : ""}" data-idx="${i}" aria-pressed="${set ? "true" : "false"}" aria-label="Toggle sparse bit ${i}">${set ? 1 : 0}</button>`;
+    return `<button type="button" class="qc-bit${set ? " on" : ""}" data-idx="${i}" aria-pressed="${set ? "true" : "false"}" aria-label="Toggle sparse bit ${i}"><span aria-hidden="true">${set ? 1 : 0}</span></button>`;
   }).join("");
 
   const weight = shifts.length;
