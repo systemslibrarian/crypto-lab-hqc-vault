@@ -172,16 +172,31 @@ function randomBitVector(n: number): Uint8Array {
  * Discarding the short tail above the largest multiple of n costs one extra
  * draw with probability under n/2**32.
  */
-function uniformBelow(n: number): number {
-  const limit = Math.floor(0x1_0000_0000 / n) * n;
-  const buf = new Uint32Array(1);
+/**
+ * The rejection bound: the largest multiple of n that fits in 32 bits. Raw
+ * draws below it are used, draws at or above it are discarded.
+ */
+export function rejectionLimit(n: number): number {
+  return Math.floor(0x1_0000_0000 / n) * n;
+}
+
+/** Fill one 32-bit word. Injectable so the bound can be tested at its edges. */
+export type Uint32Source = (buf: Uint32Array<ArrayBuffer>) => void;
+
+const cryptoSource: Uint32Source = (buf) => {
+  crypto.getRandomValues(buf);
+};
+
+export function uniformBelow(n: number, source: Uint32Source = cryptoSource): number {
+  const limit = rejectionLimit(n);
+  const buf = new Uint32Array(1) as Uint32Array<ArrayBuffer>;
   for (;;) {
-    crypto.getRandomValues(buf);
+    source(buf);
     if (buf[0] < limit) return buf[0] % n;
   }
 }
 
-function randomSparse(n: number, weight: number): Uint32Array {
+export function randomSparse(n: number, weight: number): Uint32Array {
   const used = new Set<number>();
   while (used.size < weight) {
     const slot = uniformBelow(n);
