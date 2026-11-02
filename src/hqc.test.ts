@@ -31,6 +31,11 @@ import {
   encryptWithSharedSecret,
   decryptWithSharedSecret,
   HQC_PARAMS,
+  rejectionLimit,
+  uniformBelow,
+  randomSparse,
+  generateIllustrativeKeyPair,
+  type Uint32Source,
 } from './hqc';
 import { comparisonRows } from './compare';
 
@@ -148,5 +153,96 @@ describe('the bit packing the code words travel in', () => {
       .toEqual([1, 0, 0, 0, 0, 0, 0, 0]);
     expect(Array.from(bytesToBits(Uint8Array.from([0x80]), 8)))
       .toEqual([0, 0, 0, 0, 0, 0, 0, 1]);
+  });
+});
+
+/* The rejection bound, at its edges.
+ *
+ * A chi-squared test cannot find an off-by-one here: shifting the bound by one
+ * changes the distribution by about 2^-32, which no sample size this lab could
+ * run would separate from noise. The bound is a boundary condition, so it is
+ * tested as one, with the byte source injected instead of sampled.
+ */
+describe("rejection bound", () => {
+  /** A source that yields the given raw words in order and counts its calls. */
+  function feed(words: number[], calls: number[] = []): Uint32Source {
+    let i = 0;
+    return (buf) => {
+      calls.push(i);
+      buf[0] = words[Math.min(i, words.length - 1)];
+      i += 1;
+    };
+  }
+
+  // n = 10 on purpose: 2**32 % 10 is 6, so the discarded tail is six values
+  // wide and a multi-redraw can be exercised. With n = 3 the tail is a single
+  // value and limit + 1 wraps to 0, which is accepted.
+  const n = 10;
+  // Derived here WITHOUT calling the function under test: if the injected words
+  // came from rejectionLimit(), moving the bound would move the test's own
+  // expectation with it and the test could not fail.
+  const limit = 0x1_0000_0000 - (0x1_0000_0000 % n);
+
+  it("is the largest multiple of n inside 32 bits", () => {
+    expect(rejectionLimit(n)).toBe(limit);
+    expect(limit % n).toBe(0);
+    // Exactly the short tail is discarded, and nothing more.
+    expect(0x1_0000_0000 - limit).toBe(0x1_0000_0000 % n);
+  });
+
+  it("uses the largest accepted raw value", () => {
+    const calls: number[] = [];
+    expect(uniformBelow(n, feed([limit - 1], calls))).toBe((limit - 1) % n);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("redraws on the smallest rejected raw value", () => {
+    const calls: number[] = [];
+    // limit itself must be discarded; the next draw is the one that counts.
+    expect(uniformBelow(n, feed([limit, 7], calls))).toBe(7 % n);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("keeps redrawing while the source stays in the tail", () => {
+    const calls: number[] = [];
+    expect(uniformBelow(n, feed([limit, limit + 3, limit + 5, 5], calls))).toBe(5 % n);
+    expect(calls).toHaveLength(4);
+  });
+});
+
+/* The sparse vectors are this lab's private key, so their shape is asserted
+ * rather than assumed: exactly w positions, all distinct, all in range. */
+describe("sparse vectors", () => {
+  it("randomSparse returns exactly w distinct positions, sorted and in range", () => {
+    for (const [n, w] of [
+      [101, 10],
+      [384, 3],
+      [768, 5],
+      [1024, 64],
+    ] as const) {
+      const v = randomSparse(n, w);
+      expect(v.length, `${n}/${w} length`).toBe(w);
+      expect(new Set(v).size, `${n}/${w} distinct`).toBe(w);
+      expect([...v].every((p) => p >= 0 && p < n), `${n}/${w} in range`).toBe(true);
+      expect([...v], `${n}/${w} sorted`).toEqual([...v].sort((a, b) => a - b));
+    }
+  });
+
+  it("every generated private key carries exactly w distinct positions", async () => {
+    for (const level of ["hqc-128", "hqc-192", "hqc-256"] as const) {
+      const kp = await generateIllustrativeKeyPair(level);
+      const w = kp.illustrative.w;
+      for (const [name, vec] of [
+        ["x", kp.privateKey.x],
+        ["y", kp.privateKey.y],
+      ] as const) {
+        expect(vec.length, `${level} ${name} weight`).toBe(w);
+        expect(new Set(vec).size, `${level} ${name} distinct`).toBe(w);
+        expect(
+          [...vec].every((p) => p >= 0 && p < kp.illustrative.n),
+          `${level} ${name} in range`
+        ).toBe(true);
+      }
+    }
   });
 });
