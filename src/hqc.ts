@@ -161,10 +161,30 @@ function randomBitVector(n: number): Uint8Array {
   return out;
 }
 
+/**
+ * A uniform integer in [0, n), drawn by rejection rather than by `% n`.
+ *
+ * 2**32 is not a multiple of n, so taking a 32-bit draw modulo n makes the
+ * first `2**32 % n` values slightly likelier than the rest. This lab's sparse
+ * vectors are its PRIVATE KEY (x and y below) and its encapsulation randomness
+ * (r1, r2, e), so the bias sits in key material rather than in a display
+ * detail -- it is cheaper to remove it than to argue about how small it is.
+ * Discarding the short tail above the largest multiple of n costs one extra
+ * draw with probability under n/2**32.
+ */
+function uniformBelow(n: number): number {
+  const limit = Math.floor(0x1_0000_0000 / n) * n;
+  const buf = new Uint32Array(1);
+  for (;;) {
+    crypto.getRandomValues(buf);
+    if (buf[0] < limit) return buf[0] % n;
+  }
+}
+
 function randomSparse(n: number, weight: number): Uint32Array {
   const used = new Set<number>();
   while (used.size < weight) {
-    const slot = crypto.getRandomValues(new Uint32Array(1))[0] % n;
+    const slot = uniformBelow(n);
     used.add(slot);
   }
   return Uint32Array.from(Array.from(used).sort((a, b) => a - b));
@@ -432,7 +452,7 @@ export function flipRandomBits(
   const safeCount = Math.max(0, Math.min(count, totalBits));
   const used = new Set<number>();
   while (used.size < safeCount) {
-    const idx = crypto.getRandomValues(new Uint32Array(1))[0] % totalBits;
+    const idx = uniformBelow(totalBits);
     used.add(idx);
   }
   const positions = Array.from(used);

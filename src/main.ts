@@ -875,7 +875,14 @@ tamperRun?.addEventListener("click", async () => {
     if (tamperOutput) tamperOutput.innerHTML = '<p class="error">Generate a keypair and run encap first.</p>';
     return;
   }
-  const field = tamperField.value as "u" | "v" | "d";
+  // The select's value is DOM text, and it is both used to index the ciphertext
+  // and shown back in the panel below. Check it rather than asserting it.
+  const rawField = tamperField.value;
+  if (rawField !== "u" && rawField !== "v" && rawField !== "d") {
+    tamperOutput.innerHTML = '<p class="error">Choose u, v or d to tamper with.</p>';
+    return;
+  }
+  const field: "u" | "v" | "d" = rawField;
   const bit = Math.max(0, Number(tamperBit.value));
   const tampered = flipCiphertextBit(currentEncap.ciphertext, field, bit);
   const dec = await decapsulateIllustrative(currentKeyPair, tampered);
@@ -883,7 +890,7 @@ tamperRun?.addEventListener("click", async () => {
   const tamperedShared = fullHex(dec.sharedSecret);
   const sameK = cleanShared === tamperedShared;
   tamperOutput.innerHTML = `
-    <p>Flipped bit <strong>${bit}</strong> of <strong>${field}</strong>.</p>
+    <p>Flipped bit <strong>${bit}</strong> of <strong>${escapeHtml(field)}</strong>.</p>
     <p>FO verification: <strong class="${dec.verified ? "ok" : "bad"}">${dec.verified ? "accepted" : "REJECTED — implicit rejection"}</strong></p>
     <p>K matches clean run: <strong class="${sameK ? "ok" : "bad"}">${sameK ? "yes" : "no — divergent K"}</strong></p>
     <p>Clean K     = <code class="hex">${cleanShared}</code></p>
