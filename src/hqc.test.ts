@@ -38,6 +38,8 @@ import {
   type Uint32Source,
 } from './hqc';
 import { comparisonRows } from './compare';
+import { concatenatedCodeLayers } from './codes';
+import { GLOSSARY } from './glossary';
 
 const hex = (h: string) => Uint8Array.from((h.match(/../g) ?? []).map((b) => parseInt(b, 16)));
 const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
@@ -62,6 +64,25 @@ describe('published HQC-1/3/5 parameters used by the sizing chart', () => {
     expect(row?.correctness).toContain('2^-127');
     expect(row?.source).toContain('2026-10-12');
     expect(row?.source).toContain('historical Round-4');
+  });
+
+  // Table 8 gives HQC-1 a DFR < 2^-127, not 2^-128 (that is BIKE L1's target,
+  // and it stays on the BIKE row). The prose in the decoder walkthrough and the
+  // glossary used to say 2^-128, so all three copies are now held to the chart.
+  it('the prose copies of the HQC-1 DFR bound agree with that row', () => {
+    const row = comparisonRows.find((candidate) => candidate.variant === 'HQC-128');
+    const bound = row?.correctness.match(/2\^-\d+/)?.[0];
+    expect(bound).toBe('2^-127');
+
+    const concatenation = concatenatedCodeLayers.find((layer) => layer.id === 'concat');
+    expect(concatenation?.detail).toContain(bound);
+    expect(concatenation?.detail).not.toContain('2^-128');
+
+    expect(GLOSSARY.dfr?.long).toContain(bound);
+    expect(GLOSSARY.dfr?.long).not.toContain('2^-128');
+    // The level-3 and level-5 bounds are unchanged by this.
+    expect(GLOSSARY.dfr?.long).toContain('2^-192');
+    expect(GLOSSARY.dfr?.long).toContain('2^-256');
   });
 });
 

@@ -26,7 +26,7 @@ export const concatenatedCodeLayers: DecoderLayer[] = [
     id: "concat",
     title: "Concatenation",
     detail:
-      "Bit-level noise is absorbed by Reed-Muller; whichever RM blocks still fail show up to Reed-Solomon as isolated symbol errors. The composition is what pushes HQC's decoding failure rate below 2^-128 at level 1 — very small, but not zero."
+      "Bit-level noise is absorbed by Reed-Muller; whichever RM blocks still fail show up to Reed-Solomon as isolated symbol errors. The composition is what pushes HQC's decoding failure rate below 2^-127 at level 1 — very small, but not zero."
   }
 ];
 

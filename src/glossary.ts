@@ -19,7 +19,7 @@ export const GLOSSARY: Record<string, GlossTerm> = {
   },
   dfr: {
     short: "DFR (Decoding Failure Rate)",
-    long: "The probability that a KEM's decoder cannot recover the message from a valid ciphertext, taken over the randomness of key generation and encapsulation. HQC's DFR is small but NOT zero: its concatenated code is parameterised so the analysed DFR stays below 2^-128, 2^-192, and 2^-256 at the three security levels. BIKE targets a comparable bound; Classic McEliece is the code-based KEM whose Goppa decoding gives DFR = 0."
+    long: "The probability that a KEM's decoder cannot recover the message from a valid ciphertext, taken over the randomness of key generation and encapsulation. HQC's DFR is small but NOT zero: its concatenated code is parameterised so the analysed DFR stays below 2^-127, 2^-192, and 2^-256 at the three security levels (Table 8 of the specification). BIKE targets a comparable bound; Classic McEliece is the code-based KEM whose Goppa decoding gives DFR = 0."
   },
   fo: {
     short: "FO Transform (Fujisaki–Okamoto)",
