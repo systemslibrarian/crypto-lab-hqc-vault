@@ -427,7 +427,19 @@ export async function decryptWithSharedSecret(
     envelope.ciphertext.byteLength
   );
   const plainBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivView }, aesKey, ctView);
-  return new TextDecoder().decode(plainBuffer);
+  return new TextDecoder("utf-8", { ignoreBOM: true }).decode(plainBuffer);
+}
+
+/** Alice encrypts with her encapsulation key; Bob opens with his verified decapsulation key. */
+export async function exchangeMessage(
+  sender: HqcEncapsulation,
+  receiver: HqcDecapsulation,
+  message: string
+): Promise<{ envelope: AesEnvelope; plaintext: string }> {
+  if (!receiver.verified) throw new Error("HQC decapsulation was not verified.");
+  const envelope = await encryptWithSharedSecret(sender.sharedSecret, message);
+  const plaintext = await decryptWithSharedSecret(receiver.sharedSecret, envelope);
+  return { envelope, plaintext };
 }
 
 // Tamper helper: returns a new ciphertext with one bit flipped in u, v, or d.

@@ -28,6 +28,7 @@ import {
   sha256,
   bitsToBytes,
   bytesToBits,
+  encapsulateIllustrative, decapsulateIllustrative, exchangeMessage,
   encryptWithSharedSecret,
   decryptWithSharedSecret,
   HQC_PARAMS,
@@ -400,4 +401,15 @@ describe("sampler uniformity (seeded)", () => {
       );
     });
   }
+});
+
+it('Alice and Bob must independently derive the same key to exchange a message', async () => {
+  const keypair = await generateIllustrativeKeyPair('hqc-128');
+  const first = await encapsulateIllustrative(keypair);
+  const second = await encapsulateIllustrative(keypair);
+  const bob = await decapsulateIllustrative(keypair, first.ciphertext);
+  const message = '  \uFEFFlibrary 📚\n ';
+  expect((await exchangeMessage(first, bob, message)).plaintext).toBe(message);
+  await expect(exchangeMessage(second, bob, message)).rejects.toThrow();
+  await expect(exchangeMessage(first, { ...bob, verified: false }, message)).rejects.toThrow('not verified');
 });

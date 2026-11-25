@@ -8,9 +8,8 @@ import {
   ILLUSTRATIVE_PARAMS,
   bitsToBytes,
   decapsulateIllustrative,
-  decryptWithSharedSecret,
+  exchangeMessage,
   encapsulateIllustrative,
-  encryptWithSharedSecret,
   flipCiphertextBit,
   flipRandomBits,
   fullHex,
@@ -179,7 +178,7 @@ app.innerHTML = `
     <section class="panel" id="panel-aes" aria-labelledby="panel-aes-title">
       <h2 id="panel-aes-title">5. KEM + DEM: encrypt a message</h2>
       <p>
-        ${withGlossary("A [[KEM]] only derives a shared secret. To encrypt a payload you pair it with a symmetric [[DEM]] — here AES-256-GCM, using HQC's 32-byte shared secret K directly as the key.")}
+        ${withGlossary("A [[KEM]] only derives a shared secret. To encrypt a payload you pair it with a symmetric [[DEM]] — here AES-256-GCM, using Alice’s encapsulated 32-byte key to encrypt and Bob’s decapsulated key to decrypt.")}
       </p>
       <form id="aes-form" class="aes-form">
         <label for="message-input">Message to encrypt with AES-256-GCM</label>
@@ -492,13 +491,16 @@ if (keygenBtn && keygenOutput && levelSelector) {
   keygenBtn.addEventListener("click", async () => {
     try {
       keygenBtn.disabled = true;
+      currentKeyPair = null;
+      currentEncap = null;
+      kemOutput?.replaceChildren();
+      retireMessage();
       keygenOutput.textContent = "Generating keypair...";
       announce("Generating illustrative HQC key pair.");
 
       const level = levelSelector.value as HqcLevel;
       const kp = await generateIllustrativeKeyPair(level);
       currentKeyPair = kp;
-      currentEncap = null;
 
       const hPacked = bitsToBytes(kp.publicKey.h);
       const sPacked = bitsToBytes(kp.publicKey.s);
@@ -688,12 +690,16 @@ if (encapBtn && kemOutput) {
       kemOutput.innerHTML = '<p class="error">Generate a keypair first.</p>';
       return;
     }
+    const recipient = currentKeyPair;
     try {
       encapBtn.disabled = true;
+      currentEncap = null;
+      retireMessage();
       kemOutput.textContent = "Running encapsulation and decapsulation...";
-      const enc = await encapsulateIllustrative(currentKeyPair);
+      const enc = await encapsulateIllustrative(recipient);
+      const dec = await decapsulateIllustrative(recipient, enc.ciphertext);
+      if (currentKeyPair !== recipient) return;
       currentEncap = enc;
-      const dec = await decapsulateIllustrative(currentKeyPair, enc.ciphertext);
       const match = fullHex(enc.sharedSecret) === fullHex(dec.sharedSecret);
 
       kemOutput.innerHTML = `
@@ -723,6 +729,7 @@ if (encapBtn && kemOutput) {
       });
       announce(match ? "Encap and decap match." : "Mismatch detected.");
     } catch (err) {
+      if (currentKeyPair !== recipient) return;
       kemOutput.innerHTML = `<p class="error">Encap/decap failed: ${escapeHtml(String(err))}</p>`;
     } finally {
       encapBtn.disabled = false;
@@ -736,30 +743,42 @@ const aesForm = document.querySelector<HTMLFormElement>("#aes-form");
 const aesOutput = document.querySelector<HTMLDivElement>("#aes-output");
 const messageInput = document.querySelector<HTMLTextAreaElement>("#message-input");
 
+let aesRevision = 0;
+function retireMessage(): void {
+  aesRevision++;
+  aesOutput?.replaceChildren();
+}
+
 if (aesForm && aesOutput && messageInput) {
+  messageInput.addEventListener("input", retireMessage);
   aesForm.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    if (!currentEncap || !currentKeyPair) {
+    retireMessage();
+    const revision = aesRevision;
+    const sender = currentEncap;
+    const recipient = currentKeyPair;
+    if (!sender || !recipient) {
       aesOutput.innerHTML = '<p class="error">Run encap first to derive a shared secret.</p>';
       return;
     }
     try {
-      const message = messageInput.value.trim();
-      if (!message) {
+      const message = messageInput.value;
+      if (!message.trim()) {
         aesOutput.innerHTML = '<p class="error">Please enter a message.</p>';
         return;
       }
-      const dec = await decapsulateIllustrative(currentKeyPair, currentEncap.ciphertext);
-      const envelope = await encryptWithSharedSecret(dec.sharedSecret, message);
-      const plaintext = await decryptWithSharedSecret(dec.sharedSecret, envelope);
+      const dec = await decapsulateIllustrative(recipient, sender.ciphertext);
+      const { envelope, plaintext } = await exchangeMessage(sender, dec, message);
+      if (revision !== aesRevision || sender !== currentEncap || recipient !== currentKeyPair) return;
       aesOutput.innerHTML = `
         <p>IV = <code class="hex">${fullHex(envelope.iv)}</code></p>
         <p>AES-256-GCM ciphertext = <code id="aes-ct" class="hex">${fullHex(envelope.ciphertext)}</code>
            <button class="copy-btn" type="button" data-copy-target="#aes-ct">copy</button></p>
-        <p>Decrypted plaintext = <strong>${escapeHtml(plaintext)}</strong></p>
+        <p>Decrypted plaintext = <strong class="aes-plaintext">${escapeHtml(plaintext)}</strong></p>
       `;
     } catch {
-      aesOutput.innerHTML = '<p class="error">AES operation failed.</p>';
+      if (revision !== aesRevision || sender !== currentEncap || recipient !== currentKeyPair) return;
+      aesOutput.innerHTML = '<p class="error">The message could not be authenticated and decrypted.</p>';
     }
   });
 }

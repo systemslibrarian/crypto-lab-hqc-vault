@@ -185,3 +185,15 @@ test('toggling step-by-step off actually hides the steps', async ({ page }) => {
   // The attribute is set; the question is whether the cascade honours it.
   await expect(steps, 'hidden was set but the steps are still displayed').toBeHidden();
 });
+
+test('the message round trip preserves text and retires the old result on edit', async ({ page }) => {
+  await prepareKem(page);
+  const draft = page.locator('#message-input');
+  const output = page.locator('#aes-output');
+  const message = '  library 📚\n ';
+  await draft.fill(message);
+  await page.locator('#aes-form button').click();
+  await expect(output.locator('strong')).toHaveJSProperty('textContent', message);
+  await draft.fill('another message');
+  await expect(output).toBeEmpty();
+});
